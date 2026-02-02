@@ -243,7 +243,7 @@ export default function Configuracoes() {
 
           {/* Dicas de Uso */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="p-8 border-2 border-border/50 bg-white rounded-[2rem] shadow-xl">
+            <Card className="p-8 border-2 border-border/50 bg-white rounded-4xl shadow-xl">
               <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-primary" />
                 Resumo Diário
@@ -252,7 +252,7 @@ export default function Configuracoes() {
                 Nosso sistema processa todos os seus processos ativos durante a madrugada e gera um resumo executivo que chega pontualmente no horário configurado.
               </p>
             </Card>
-            <Card className="p-8 border-2 border-border/50 bg-white rounded-[2rem] shadow-xl">
+            <Card className="p-8 border-2 border-border/50 bg-white rounded-4xl shadow-xl">
               <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
                 <Save className="w-5 h-5 text-primary" />
                 Segurança de Dados

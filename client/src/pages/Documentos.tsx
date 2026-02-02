@@ -155,7 +155,7 @@ export default function Documentos() {
               {documentosFiltrados.map((doc) => (
                 <Card
                   key={doc.id}
-                  className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all rounded-[2rem] flex flex-col group hover:-translate-y-1"
+                  className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all rounded-4xl flex flex-col group hover:-translate-y-1"
                 >
                   <div className="flex items-start justify-between mb-6">
                     <div className="w-16 h-16 bg-secondary/50 rounded-2xl flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">

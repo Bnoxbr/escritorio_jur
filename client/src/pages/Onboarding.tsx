@@ -261,8 +261,8 @@ export default function Onboarding() {
                   />
                 </div>
 
-                <div className="bg-primary/5 border-2 border-primary/10 rounded-[1.5rem] p-6 flex items-start gap-4">
-                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="bg-primary/5 border-2 border-primary/10 rounded-3xl p-6 flex items-start gap-4">
+                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0">
                     <CheckCircle2 className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -334,8 +334,8 @@ export default function Onboarding() {
                 ))}
               </div>
 
-              <div className="bg-emerald-50 border-2 border-emerald-100 rounded-[1.5rem] p-6 text-emerald-900 font-bold flex items-center gap-4">
-                <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="bg-emerald-50 border-2 border-emerald-100 rounded-3xl p-6 text-emerald-900 font-bold flex items-center gap-4">
+                <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-6 h-6 text-white" />
                 </div>
                 Pronto para ser processado pela nossa inteligência!
@@ -386,7 +386,7 @@ export default function Onboarding() {
             <Button
               onClick={handleFinalizarOnboarding}
               size="lg"
-              className="bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white shadow-2xl rounded-[2rem] font-bold text-xl px-12 py-10 transition-all hover:scale-105"
+              className="bg-white border-2 border-primary text-primary hover:bg-primary hover:text-white shadow-2xl rounded-4xl font-bold text-xl px-12 py-10 transition-all hover:scale-105"
             >
               Finalizar e Ir para o Dashboard <ChevronRight className="w-6 h-6 ml-2" />
             </Button>

@@ -139,7 +139,7 @@ export default function Alertas() {
                   >
                     <div className="flex items-start justify-between gap-6">
                       <div className="flex items-start gap-6 flex-1">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${alerta.tipo === 'urgente' ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${alerta.tipo === 'urgente' ? 'bg-red-500/10' : 'bg-amber-500/10'}`}>
                           <Icon className={`w-6 h-6 ${alerta.tipo === 'urgente' ? 'text-red-600' : 'text-amber-600'}`} />
                         </div>
                         <div className="flex-1">

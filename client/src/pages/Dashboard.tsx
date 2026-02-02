@@ -88,7 +88,7 @@ export default function Dashboard() {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-12">
-            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-[2rem] group">
+            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center group-hover:bg-primary transition-colors">
                   <FileText className="w-7 h-7 text-primary group-hover:text-white transition-colors" />
@@ -100,7 +100,7 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-[2rem] group">
+            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
                   <CheckCircle2 className="w-7 h-7 text-emerald-600 group-hover:text-white transition-colors" />
@@ -112,7 +112,7 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-[2rem] group">
+            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center group-hover:bg-amber-500 transition-colors">
                   <Clock className="w-7 h-7 text-amber-600 group-hover:text-white transition-colors" />
@@ -124,7 +124,7 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-[2rem] group">
+            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center group-hover:bg-red-500 transition-colors">
                   <AlertCircle className="w-7 h-7 text-red-600 group-hover:text-white transition-colors" />
@@ -136,7 +136,7 @@ export default function Dashboard() {
               </div>
             </Card>
 
-            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-[2rem] group">
+            <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 transition-colors">
                   <TrendingUp className="w-7 h-7 text-blue-600 group-hover:text-white transition-colors" />
@@ -217,7 +217,7 @@ export default function Dashboard() {
                 return (
                   <Card
                     key={processo.id}
-                    className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all rounded-[2rem] cursor-pointer group hover:-translate-y-1"
+                    className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all rounded-4xl cursor-pointer group hover:-translate-y-1"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-10 items-center">
                       {/* Informações Principais */}

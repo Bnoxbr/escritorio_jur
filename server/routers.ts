@@ -1,9 +1,9 @@
 import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { getSessionCookieOptions } from "./_core/cookies.js";
+import { systemRouter } from "./_core/systemRouter.js";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc.js";
 import { z } from "zod";
-import { getNotificationPreferences, upsertNotificationPreferences, getNotificationHistory, getProcessos, getProcessoById, createProcesso, updateProcesso, deleteProcesso } from "./db";
+import { getNotificationPreferences, upsertNotificationPreferences, getNotificationHistory, getProcessos, getProcessoById, createProcesso, updateProcesso, deleteProcesso } from "./db.js";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly

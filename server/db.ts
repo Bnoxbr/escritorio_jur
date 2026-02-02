@@ -1,7 +1,7 @@
 import { eq, and, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, notificationPreferences, notificationHistory, InsertNotificationPreference, InsertNotificationHistory, processos, InsertProcesso } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import { InsertUser, users, notificationPreferences, notificationHistory, InsertNotificationPreference, InsertNotificationHistory, processos, InsertProcesso } from "../drizzle/schema.js";
+import { ENV } from './_core/env.js';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 

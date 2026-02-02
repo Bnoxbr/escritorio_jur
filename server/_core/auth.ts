@@ -1,8 +1,8 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import type { Express, Request, Response } from "express";
-import { getSessionCookieOptions } from "./cookies";
-import { sdk } from "./sdk";
-import { ENV } from "./env";
+import { getSessionCookieOptions } from "./cookies.js";
+import { sdk } from "./sdk.js";
+import { ENV } from "./env.js";
 
 export function registerAuthRoutes(app: Express) {
   // Simple dev login route

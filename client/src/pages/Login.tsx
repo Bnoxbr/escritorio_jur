@@ -63,7 +63,7 @@ export default function Login() {
           <h2 className="text-xl font-serif text-stone-600 mb-8 leading-relaxed italic px-12 opacity-80">
             "A justiça é a constância e perpétua vontade de dar a cada um o que é seu."
           </h2>
-          <div className="w-12 h-[1px] bg-[#D4AF37]/40 mx-auto mb-8" />
+          <div className="w-12 h-px bg-[#D4AF37]/40 mx-auto mb-8" />
           <p className="text-stone-400 tracking-[0.5em] text-[9px] uppercase font-medium">
             Exclusividade • Ética • Resultados
           </p>
@@ -96,7 +96,7 @@ export default function Login() {
         {/* O CARD BORDÔ ARREDONDADO */}
         <div className="w-full max-w-[440px] bg-[#4A0404] p-10 sm:p-16 rounded-[3.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-700 relative overflow-hidden">
           
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
           
           <div className="relative z-10">
             <div className="mb-12 text-center lg:text-left">
