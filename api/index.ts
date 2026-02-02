@@ -1,5 +1,5 @@
 // api/index.ts
-// Importamos o app já configurado do seu core para evitar duplicidade
+// Importamos do core original. A Vercel vai compilar isso no deploy.
 import { app } from "../server/_core/index"; 
 
 export default app;
