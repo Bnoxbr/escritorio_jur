@@ -65,6 +65,7 @@ export default function Onboarding() {
     adicionarProcesso({
       ...form,
       status: "ativo",
+      aiSummary: null,
     });
     setProcessosAdicionados(processosAdicionados + 1);
     setForm({

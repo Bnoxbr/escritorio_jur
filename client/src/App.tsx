@@ -25,6 +25,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={isAuthenticated ? Dashboard : Login} />
+      <Route path={"/demo"} component={LoginDemo} />
       <Route path={"/onboarding"} component={Onboarding} />
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/processos"} component={Processos} />

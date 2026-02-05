@@ -1,65 +1,103 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
 import { Menu, Bell, Save, Send, CheckCircle2 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { toast } from "sonner";
 
 export default function Configuracoes() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  // Buscar preferências
-  const { data: preferences, isLoading: isLoadingPrefs } = trpc.notifications.getPreferences.useQuery();
-  
-  // Mutation para atualizar preferências
-  const updatePrefsMutation = trpc.notifications.updatePreferences.useMutation();
-  const sendTestMutation = trpc.notifications.sendTestNotification.useMutation();
+  const { user } = useAuth();
 
   // Estado local das preferências
   const [prefs, setPrefs] = useState({
-    emailNotificationsEnabled: "true" as "true" | "false",
-    notifyVencidos: "true" as "true" | "false",
-    notifyUrgentes: "true" as "true" | "false",
-    notifyProximos: "true" as "true" | "false",
-    diasAntecedencia: 7,
-    horarioNotificacao: "09:00",
+    email_enabled: true,
+    notify_vencidos: true,
+    notify_urgentes: true,
+    notify_proximos: true,
+    dias_antecedencia: 7,
+    horario_notificacao: "09:00",
   });
+  
+  const [isLoadingPrefs, setIsLoadingPrefs] = useState(true);
 
-  // Carregar preferências quando disponíveis
-  useEffect(() => {
-    if (preferences) {
-      setPrefs({
-        emailNotificationsEnabled: (preferences.emailNotificationsEnabled as "true" | "false") || "true",
-        notifyVencidos: (preferences.notifyVencidos as "true" | "false") || "true",
-        notifyUrgentes: (preferences.notifyUrgentes as "true" | "false") || "true",
-        notifyProximos: (preferences.notifyProximos as "true" | "false") || "true",
-        diasAntecedencia: preferences.diasAntecedencia || 7,
-        horarioNotificacao: preferences.horarioNotificacao || "09:00",
-      });
+  // Carregar preferências
+  const fetchPreferences = useCallback(async () => {
+    if (!user) return;
+    setIsLoadingPrefs(true);
+    try {
+      const { data, error } = await supabase
+        .from("notification_preferences")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error && error.code !== "PGRST116") { // Ignore 'No rows found'
+          console.error("Erro ao buscar preferências:", error);
+      }
+
+      if (data) {
+        setPrefs({
+          email_enabled: data.email_enabled ?? true,
+          notify_vencidos: data.notify_vencidos ?? true,
+          notify_urgentes: data.notify_urgentes ?? true,
+          notify_proximos: data.notify_proximos ?? true,
+          dias_antecedencia: data.dias_antecedencia || 7,
+          horario_notificacao: data.horario_notificacao || "09:00",
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar preferências:", error);
+    } finally {
+      setIsLoadingPrefs(false);
     }
-  }, [preferences]);
+  }, [user]);
+
+  useEffect(() => {
+    fetchPreferences();
+  }, [fetchPreferences]);
 
   const handleSavePreferences = async () => {
+    if (!user) return;
     setLoading(true);
     try {
-      await updatePrefsMutation.mutateAsync(prefs);
+      const payload = {
+        user_id: user.id,
+        email_enabled: prefs.email_enabled,
+        notify_vencidos: prefs.notify_vencidos,
+        notify_urgentes: prefs.notify_urgentes,
+        notify_proximos: prefs.notify_proximos,
+        dias_antecedencia: prefs.dias_antecedencia,
+        horario_notificacao: prefs.horario_notificacao,
+        updated_at: new Date().toISOString(),
+      };
+
+      // Upsert based on user_id
+      const { error } = await supabase
+        .from("notification_preferences")
+        .upsert(payload, { onConflict: 'user_id' });
+
+      if (error) throw error;
+
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      toast.success("Preferências salvas com sucesso!");
     } catch (error) {
       console.error("Erro ao salvar preferências:", error);
+      toast.error("Erro ao salvar preferências.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleSendTestEmail = async () => {
-    try {
-      await sendTestMutation.mutateAsync();
-    } catch (error) {
-      console.error("Erro ao enviar e-mail de teste:", error);
-    }
+    // This functionality will be migrated to Edge Functions.
+    toast.info("Funcionalidade de e-mail de teste será migrada para Edge Functions.");
   };
 
   if (isLoadingPrefs) {
@@ -118,11 +156,11 @@ export default function Configuracoes() {
                 <label className="relative inline-flex items-center cursor-pointer scale-125">
                   <input
                     type="checkbox"
-                    checked={prefs.emailNotificationsEnabled === "true"}
+                    checked={prefs.email_enabled}
                     onChange={(e) =>
                       setPrefs({
                         ...prefs,
-                        emailNotificationsEnabled: e.target.checked ? "true" : "false",
+                        email_enabled: e.target.checked,
                       })
                     }
                     className="sr-only peer"
@@ -131,26 +169,26 @@ export default function Configuracoes() {
                 </label>
               </div>
 
-              {prefs.emailNotificationsEnabled === "true" && (
+              {prefs.email_enabled && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
                   <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-2">Preferências de Alerta</p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {[
-                      { label: "Vencidos", key: "notifyVencidos", color: "bg-red-500" },
-                      { label: "Urgentes", key: "notifyUrgentes", color: "bg-orange-500" },
-                      { label: "Próximos", key: "notifyProximos", color: "bg-amber-500" },
+                      { label: "Vencidos", key: "notify_vencidos", color: "bg-red-500" },
+                      { label: "Urgentes", key: "notify_urgentes", color: "bg-orange-500" },
+                      { label: "Próximos", key: "notify_proximos", color: "bg-amber-500" },
                     ].map((item) => (
                       <div key={item.key} className="flex items-center justify-between p-5 bg-secondary/30 rounded-2xl border-2 border-border/20">
                         <span className="font-bold text-foreground">{item.label}</span>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={prefs[item.key as keyof typeof prefs] === "true"}
+                            checked={!!prefs[item.key as keyof typeof prefs]}
                             onChange={(e) =>
                               setPrefs({
                                 ...prefs,
-                                [item.key]: e.target.checked ? "true" : "false",
+                                [item.key]: e.target.checked,
                               })
                             }
                             className="sr-only peer"
@@ -171,18 +209,18 @@ export default function Configuracoes() {
                           type="range"
                           min="1"
                           max="30"
-                          value={prefs.diasAntecedencia}
+                          value={prefs.dias_antecedencia}
                           onChange={(e) =>
                             setPrefs({
                               ...prefs,
-                              diasAntecedencia: parseInt(e.target.value),
+                              dias_antecedencia: parseInt(e.target.value),
                             })
                           }
                           className="w-full h-2 bg-border/50 rounded-lg appearance-none cursor-pointer accent-primary"
                         />
                         <div className="flex justify-between items-center mt-4">
                           <span className="text-xs font-bold text-muted-foreground">1 DIA</span>
-                          <span className="text-2xl font-bold text-primary">{prefs.diasAntecedencia} dias</span>
+                          <span className="text-2xl font-bold text-primary">{prefs.dias_antecedencia} dias</span>
                           <span className="text-xs font-bold text-muted-foreground">30 DIAS</span>
                         </div>
                       </label>
@@ -195,73 +233,53 @@ export default function Configuracoes() {
                         <p className="text-sm text-muted-foreground mb-6 font-medium">Momento preferencial do alerta.</p>
                         <input
                           type="time"
-                          value={prefs.horarioNotificacao}
+                          value={prefs.horario_notificacao}
                           onChange={(e) =>
                             setPrefs({
                               ...prefs,
-                              horarioNotificacao: e.target.value,
+                              horario_notificacao: e.target.value,
                             })
                           }
-                          className="w-full px-6 py-4 border-none rounded-xl focus:ring-2 focus:ring-primary/20 transition-all bg-white text-foreground font-bold text-xl"
+                          className="w-full p-3 bg-white border-2 border-border/20 rounded-xl font-bold text-foreground focus:outline-none focus:border-primary/50 transition-all"
                         />
                       </label>
                     </div>
                   </div>
                 </div>
               )}
+            </div>
 
-              {/* Botões de Ação */}
-              <div className="flex gap-4 pt-8 border-t-2 border-border/50">
-                <Button
-                  onClick={handleSavePreferences}
-                  disabled={loading}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-white rounded-2xl font-bold py-8 text-lg shadow-xl shadow-primary/20 transition-all hover:scale-105"
-                >
-                  <Save className="w-6 h-6 mr-2" />
-                  {loading ? "Salvando..." : "Salvar Configurações"}
-                </Button>
-                {prefs.emailNotificationsEnabled === "true" && (
-                  <Button
-                    onClick={handleSendTestEmail}
-                    variant="outline"
-                    className="flex-1 rounded-2xl font-bold py-8 text-lg border-2 border-border hover:bg-secondary transition-all"
-                  >
-                    <Send className="w-6 h-6 mr-2" />
-                    Enviar Teste
-                  </Button>
+            <div className="mt-10 flex items-center justify-end gap-4 border-t border-border/10 pt-8">
+              <Button
+                variant="outline"
+                onClick={handleSendTestEmail}
+                className="gap-2 h-12 px-6 rounded-xl font-bold border-2"
+              >
+                <Send className="w-4 h-4" />
+                Testar Envio
+              </Button>
+              
+              <Button
+                onClick={handleSavePreferences}
+                disabled={loading || saved}
+                className={`gap-2 h-12 px-8 rounded-xl font-bold transition-all duration-500 ${
+                  saved ? "bg-green-500 hover:bg-green-600 w-40" : "w-32"
+                }`}
+              >
+                {saved ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Salvo!
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    {loading ? "..." : "Salvar"}
+                  </>
                 )}
-              </div>
-
-              {saved && (
-                <div className="p-6 bg-emerald-50 border-2 border-emerald-100 rounded-2xl text-emerald-900 font-bold flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                  Configurações atualizadas com sucesso!
-                </div>
-              )}
+              </Button>
             </div>
           </Card>
-
-          {/* Dicas de Uso */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="p-8 border-2 border-border/50 bg-white rounded-4xl shadow-xl">
-              <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-primary" />
-                Resumo Diário
-              </h3>
-              <p className="text-muted-foreground font-medium leading-relaxed">
-                Nosso sistema processa todos os seus processos ativos durante a madrugada e gera um resumo executivo que chega pontualmente no horário configurado.
-              </p>
-            </Card>
-            <Card className="p-8 border-2 border-border/50 bg-white rounded-4xl shadow-xl">
-              <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
-                <Save className="w-5 h-5 text-primary" />
-                Segurança de Dados
-              </h3>
-              <p className="text-muted-foreground font-medium leading-relaxed">
-                Suas preferências são armazenadas de forma criptografada e nunca compartilhamos seus dados processuais com terceiros sem autorização expressa.
-              </p>
-            </Card>
-          </div>
         </div>
       </main>
     </div>

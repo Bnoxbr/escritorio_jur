@@ -20,17 +20,40 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import React, { useState } from "react";
+import { ProcessoForm } from "@/components/ProcessoForm";
+import type { Processo } from "@/types/supabase-types";
 
 export default function Processos() {
-  const { processos, deletarProcesso, isLoading } = useProcessos();
+  const { processos, adicionarProcesso, atualizarProcesso, deletarProcesso, isLoading } = useProcessos();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingProcesso, setEditingProcesso] = useState<Processo | null>(null);
 
   const filteredProcessos = processos.filter(p => 
     p.numeroProcesso.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.parteContraria.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.parteContraria?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.titulo.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleCreate = async (data: any) => {
+    await adicionarProcesso(data);
+    setIsCreateOpen(false);
+  };
+
+  const handleEdit = async (data: any) => {
+    if (editingProcesso) {
+      await atualizarProcesso(editingProcesso.id, data);
+      setEditingProcesso(null);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -54,7 +77,10 @@ export default function Processos() {
             <h1 className="text-4xl font-bold tracking-tight text-foreground mb-2">Processos</h1>
             <p className="text-muted-foreground text-lg">Gerencie seus casos e acompanhe prazos com precisão.</p>
           </div>
-          <Button className="gap-2 shadow-lg bg-primary hover:bg-primary/90 text-white px-6 py-6 rounded-xl font-bold">
+          <Button 
+            onClick={() => setIsCreateOpen(true)}
+            className="gap-2 shadow-lg bg-primary hover:bg-primary/90 text-white px-6 py-6 rounded-xl font-bold"
+          >
             <Plus className="w-5 h-5" />
             Novo Processo
           </Button>
@@ -120,7 +146,7 @@ export default function Processos() {
                       </div>
                     </TableCell>
                     <TableCell className="py-6 px-6">
-                      <span className="font-semibold text-foreground">{processo.parteContraria}</span>
+                      <span className="font-semibold text-foreground">{processo.parteContraria || "-"}</span>
                     </TableCell>
                     <TableCell className="py-6 px-6">
                       {getStatusBadge(processo.status)}
@@ -141,8 +167,12 @@ export default function Processos() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="rounded-xl border-2 shadow-2xl p-2 min-w-[160px]">
                           <DropdownMenuLabel className="font-bold text-xs uppercase tracking-wider text-muted-foreground px-3 py-2">Opções</DropdownMenuLabel>
-                          <DropdownMenuItem className="rounded-lg font-medium py-2 px-3 cursor-pointer">Ver Detalhes</DropdownMenuItem>
-                          <DropdownMenuItem className="rounded-lg font-medium py-2 px-3 cursor-pointer">Editar</DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="rounded-lg font-medium py-2 px-3 cursor-pointer"
+                            onClick={() => setEditingProcesso(processo)}
+                          >
+                            Ver Detalhes / Editar
+                          </DropdownMenuItem>
                           <DropdownMenuSeparator className="my-2 bg-border" />
                           <DropdownMenuItem
                             className="rounded-lg font-bold py-2 px-3 cursor-pointer text-red-600 focus:text-red-700 focus:bg-red-50"
@@ -159,6 +189,42 @@ export default function Processos() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Dialogs */}
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Novo Processo</DialogTitle>
+              <DialogDescription>
+                Preencha os dados abaixo para cadastrar um novo processo.
+              </DialogDescription>
+            </DialogHeader>
+            <ProcessoForm 
+              onSubmit={handleCreate} 
+              onCancel={() => setIsCreateOpen(false)}
+              isLoading={isLoading}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!editingProcesso} onOpenChange={(open) => !open && setEditingProcesso(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Editar Processo</DialogTitle>
+              <DialogDescription>
+                Atualize as informações do processo.
+              </DialogDescription>
+            </DialogHeader>
+            {editingProcesso && (
+              <ProcessoForm 
+                initialData={editingProcesso}
+                onSubmit={handleEdit} 
+                onCancel={() => setEditingProcesso(null)}
+                isLoading={isLoading}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

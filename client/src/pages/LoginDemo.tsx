@@ -5,10 +5,8 @@ import { Label } from "@/components/ui/label";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { useProcessos } from "@/contexts/ProcessosContext";
-import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
 
-export default function Login() {
+export default function LoginDemo() {
   const [, navigate] = useLocation();
   const { setOnboardingCompleto, setIsDemoMode } = useProcessos();
   const [login, setLogin] = useState("");
@@ -19,46 +17,22 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    // Limpa qualquer estado de demo anterior
-    localStorage.removeItem("isDemoMode");
-    setIsDemoMode(false);
-
-    // Validação básica de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(login)) {
-      toast.error("Por favor, insira um e-mail válido.");
+    // Simulação de autenticação para o Modo Demo
+    setTimeout(() => {
+      // Define flag de Demo
+      localStorage.setItem("isDemoMode", "true");
+      setIsDemoMode(true);
+      
+      // Define o onboarding como completo
+      setOnboardingCompleto(true);
+      
+      // Navegação direta para o Dashboard
+      navigate("/dashboard");
       setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: login,
-        password: password,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data.user) {
-        // Define o onboarding como completo para liberar as rotas no Router
-        // Em um cenário real, isso viria do banco de dados (users table)
-        setOnboardingCompleto(true);
-        toast.success("Login realizado com sucesso!");
-        // O redirecionamento pode ser automático pelo useAuth, mas forçamos aqui para garantir
-        navigate("/dashboard");
-      }
-    } catch (error: any) {
-      console.error("Erro no login:", error);
-      toast.error(error.message || "Falha ao realizar login. Verifique suas credenciais.");
-    } finally {
-      setLoading(false);
-    }
+    }, 1200);
   };
 
   return (
-    // Fundo Geral: Bege Rosado Suave (Extraído da referência visual)
     <div className="min-h-screen flex bg-[#F3EBEB] font-sans selection:bg-[#D4AF37]/30">
       
       {/* LADO ESQUERDO: Branding Artístico (Desktop) */}
@@ -68,7 +42,10 @@ export default function Login() {
         </div>
         
         <div className="relative z-10 max-w-2xl text-center animate-in fade-in duration-1000">
-          <div className="mb-14 flex flex-col items-center leading-none">
+          <div className="mb-6 flex flex-col items-center leading-none">
+             <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-widest rounded-full mb-4 border border-amber-200">
+                Modo Demonstração
+             </span>
             <span 
               className="text-6xl text-[#D4AF37] mb-2"
               style={{ 
@@ -94,20 +71,22 @@ export default function Login() {
           </h2>
           <div className="w-12 h-px bg-[#D4AF37]/40 mx-auto mb-8" />
           <p className="text-stone-400 tracking-[0.5em] text-[9px] uppercase font-medium">
-            Exclusividade • Ética • Resultados
+            Ambiente de Testes • Dados Fictícios
           </p>
         </div>
         
         <div className="absolute bottom-10 left-12 text-stone-300 text-[8px] tracking-[0.3em] uppercase font-semibold">
-          Secretário Jurídico v1.0
+          Secretário Jurídico v1.0 (Demo)
         </div>
       </div>
 
       {/* LADO DIREITO: Card Flutuante Bordô */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 sm:p-12 relative bg-[#F3EBEB]">
         
-        {/* Mobile Welcome (Visível apenas em telas pequenas) */}
         <div className="lg:hidden mb-12 text-center animate-in fade-in slide-in-from-top-4 duration-1000 flex flex-col items-center">
+          <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-widest rounded-full mb-4 border border-amber-200">
+             Modo Demonstração
+          </span>
           <span 
             className="text-5xl text-[#D4AF37] mb-1"
             style={{ fontFamily: "'Alex Brush', cursive", textShadow: '0px 3px 6px rgba(74,4,4,0.15)' }}
@@ -123,26 +102,24 @@ export default function Login() {
         </div>
 
         {/* O CARD BORDÔ ARREDONDADO */}
-        <div className="w-full max-w-[440px] bg-[#4A0404] p-10 sm:p-16 rounded-[3.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-700 relative overflow-hidden">
+        <div className="w-full max-w-[440px] bg-[#4A0404] p-10 sm:p-16 rounded-[3.5rem] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-700 relative overflow-hidden border-4 border-amber-500/30">
           
           <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
           
           <div className="relative z-10">
             <div className="mb-12 text-center lg:text-left">
-              <h1 className="text-sm font-sans text-[#D4AF37] tracking-[0.3em] mb-2 uppercase font-semibold italic">Escritório Digital</h1>
-              <p className="text-white text-[10px] tracking-wide uppercase opacity-90">Acesso seguro ao painel administrativo</p>
+              <h1 className="text-sm font-sans text-[#D4AF37] tracking-[0.3em] mb-2 uppercase font-semibold italic">Acesso Demonstração</h1>
+              <p className="text-white text-[10px] tracking-wide uppercase opacity-90">Preencha qualquer dado para testar</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-3">
-                <Label htmlFor="login" className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#D4AF37] ml-1">E-mail</Label>
+                <Label htmlFor="login" className="text-[9px] font-bold uppercase tracking-[0.3em] text-[#D4AF37] ml-1">Usuário</Label>
                 <Input
                   id="login"
-                  type="email"
-                  placeholder="seu@email.com"
+                  placeholder="demo@agentejur.com"
                   value={login}
                   onChange={(e) => setLogin(e.target.value)}
-                  // Fundo Bege Acinzentado nas Caixas
                   className="h-14 bg-[#D6D2C4] border-none text-[#4A0404] placeholder:text-[#4A0404]/40 focus:ring-2 focus:ring-[#D4AF37] transition-all duration-500 rounded-2xl px-6 text-sm font-medium"
                 />
               </div>
@@ -155,7 +132,6 @@ export default function Login() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  // Fundo Bege Acinzentado nas Caixas
                   className="h-14 bg-[#D6D2C4] border-none text-[#4A0404] focus:ring-2 focus:ring-[#D4AF37] transition-all duration-500 rounded-2xl px-6"
                 />
               </div>
@@ -168,27 +144,21 @@ export default function Login() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Autenticando
+                    Entrando...
                   </>
                 ) : (
-                  "Validar Acesso"
+                  "Acessar Demo"
                 )}
               </Button>
             </form>
 
-            <div className="mt-14 pt-8 border-t border-white/10 flex flex-col items-center gap-4">
-               <div className="flex justify-center items-center gap-6">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]/40" />
-                  <p className="text-white text-[9px] uppercase tracking-[0.4em] font-medium opacity-90">Privacidade Garantida</p>
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]/40" />
-               </div>
-               
-               <button 
-                 onClick={() => navigate("/demo")}
-                 className="text-[10px] text-white/50 uppercase tracking-widest hover:text-[#D4AF37] transition-colors underline decoration-white/20 underline-offset-4"
-               >
-                 Acessar modo demonstração
-               </button>
+            <div className="mt-8 text-center">
+                 <button 
+                   onClick={() => navigate("/")}
+                   className="text-[10px] text-white/50 uppercase tracking-widest hover:text-[#D4AF37] transition-colors underline decoration-white/20 underline-offset-4"
+                 >
+                   Voltar para Login Real
+                 </button>
             </div>
           </div>
         </div>

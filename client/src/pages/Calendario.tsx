@@ -12,11 +12,11 @@ interface Prazo {
   descricao: string;
   dataPrazo: Date;
   status: "vencido" | "urgente" | "proximo" | "normal";
-  processId: string;
+  processId: number;
 }
 
 export default function Calendario() {
-  const { processos } = useProcessos();
+  const { processos, isLoading } = useProcessos();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
 
@@ -44,7 +44,7 @@ export default function Calendario() {
         prazosList.push({
           id: `${processo.id}-prazo`,
           numeroProcesso: processo.numeroProcesso,
-          descricao: processo.descricaoPrazo,
+          descricao: processo.descricaoPrazo || "",
           dataPrazo,
           status,
           processId: processo.id,
@@ -98,110 +98,71 @@ export default function Calendario() {
           {/* Header */}
           <div className="flex items-center justify-between mb-12">
             <div>
-              <h1 className="text-5xl font-bold text-foreground mb-2 tracking-tight">Calendário Jurídico</h1>
-              <p className="text-muted-foreground text-lg font-medium">Gestão inteligente de todos os seus prazos processuais.</p>
+              <h1 className="text-4xl font-bold mb-2">Calendário Jurídico</h1>
+              <p className="text-muted-foreground">
+                Visualize e gerencie todos os prazos do escritório
+              </p>
             </div>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden p-2 hover:bg-secondary rounded-xl"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={handleExportarCalendario}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar
+              </Button>
+              <Button>
+                <Calendar className="mr-2 h-4 w-4" />
+                Novo Prazo
+              </Button>
+            </div>
           </div>
 
-          {/* Estatísticas */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-12">
-            <Card className="p-6 border-2 border-border/50 bg-white rounded-2xl text-center hover:shadow-xl transition-all group">
-              <div className="text-3xl font-bold text-primary mb-1 group-hover:scale-110 transition-transform">{stats.total}</div>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Total de Prazos</p>
+          {isLoading ? (
+             <div className="flex items-center justify-center h-64">
+               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+             </div>
+          ) : (
+            <>
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+            <Card className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="text-2xl font-bold mb-1">{stats.total}</div>
+              <p className="text-xs text-muted-foreground font-bold uppercase">Total</p>
             </Card>
-            <Card className="p-6 border-2 border-border/50 bg-white rounded-2xl text-center hover:shadow-xl transition-all group">
-              <div className="text-3xl font-bold text-red-600 mb-1 group-hover:scale-110 transition-transform">{stats.vencidos}</div>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Vencidos</p>
+            <Card className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="text-2xl font-bold text-red-600 mb-1">{stats.vencidos}</div>
+              <p className="text-xs text-muted-foreground font-bold uppercase">Vencidos</p>
             </Card>
-            <Card className="p-6 border-2 border-border/50 bg-white rounded-2xl text-center hover:shadow-xl transition-all group">
-              <div className="text-3xl font-bold text-orange-600 mb-1 group-hover:scale-110 transition-transform">{stats.urgentes}</div>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Urgentes</p>
+            <Card className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="text-2xl font-bold text-orange-600 mb-1">{stats.urgentes}</div>
+              <p className="text-xs text-muted-foreground font-bold uppercase">Urgentes</p>
             </Card>
-            <Card className="p-6 border-2 border-border/50 bg-white rounded-2xl text-center hover:shadow-xl transition-all group">
-              <div className="text-3xl font-bold text-amber-500 mb-1 group-hover:scale-110 transition-transform">{stats.proximos}</div>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Próximos</p>
+            <Card className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="text-2xl font-bold text-amber-500 mb-1">{stats.proximos}</div>
+              <p className="text-xs text-muted-foreground font-bold uppercase">Próximos</p>
             </Card>
-            <Card className="p-6 border-2 border-border/50 bg-white rounded-2xl text-center hover:shadow-xl transition-all group">
-              <div className="text-3xl font-bold text-emerald-600 mb-1 group-hover:scale-110 transition-transform">{stats.normais}</div>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Normais</p>
+            <Card className="p-4 flex flex-col items-center justify-center text-center">
+              <div className="text-2xl font-bold text-emerald-600 mb-1">{stats.normais}</div>
+              <p className="text-xs text-muted-foreground font-bold uppercase">Normais</p>
             </Card>
           </div>
 
-          {/* Filtros e Ações */}
-          <div className="flex gap-4 mb-12 flex-wrap items-center bg-card p-6 rounded-2xl border-2 border-border/50 shadow-sm">
-            <Button
-              onClick={() => setFiltroStatus(null)}
-              className={`rounded-xl font-bold transition-all px-6 py-6 ${
-                filtroStatus === null
-                  ? "bg-primary text-white shadow-xl shadow-primary/20"
-                  : "bg-white text-foreground border-2 border-border hover:border-primary/50"
-              }`}
-            >
-              <Filter className="w-5 h-5 mr-2" />
-              Todos
-            </Button>
-            <Button
-              onClick={() => setFiltroStatus("vencido")}
-              className={`rounded-xl font-bold transition-all px-6 py-6 ${
-                filtroStatus === "vencido"
-                  ? "bg-red-600 text-white shadow-xl shadow-red-600/20"
-                  : "bg-white text-foreground border-2 border-border hover:border-red-600/50"
-              }`}
-            >
-              Vencidos ({stats.vencidos})
-            </Button>
-            <Button
-              onClick={() => setFiltroStatus("urgente")}
-              className={`rounded-xl font-bold transition-all px-6 py-6 ${
-                filtroStatus === "urgente"
-                  ? "bg-orange-600 text-white shadow-xl shadow-orange-600/20"
-                  : "bg-white text-foreground border-2 border-border hover:border-orange-600/50"
-              }`}
-            >
-              Urgentes ({stats.urgentes})
-            </Button>
-            <Button
-              onClick={() => setFiltroStatus("proximo")}
-              className={`rounded-xl font-bold transition-all px-6 py-6 ${
-                filtroStatus === "proximo"
-                  ? "bg-amber-500 text-white shadow-xl shadow-amber-500/20"
-                  : "bg-white text-foreground border-2 border-border hover:border-amber-500/50"
-              }`}
-            >
-              Próximos ({stats.proximos})
-            </Button>
-
-            <div className="flex-1" />
-
-            <Button
-              onClick={handleExportarCalendario}
-              className="bg-primary hover:bg-primary/90 text-white px-8 py-6 rounded-xl font-bold gap-2 shadow-xl shadow-primary/20 transition-all hover:scale-105"
-            >
-              <Download className="w-5 h-5" />
-              Exportar Calendário
-            </Button>
-          </div>
-
-          {/* Calendário */}
-          <div className="rounded-[2.5rem] overflow-hidden border-2 border-border/50 shadow-2xl bg-white p-8">
-            {prazosFiltrados.length === 0 ? (
-              <div className="p-20 text-center">
-                <Calendar className="w-16 h-16 text-muted-foreground opacity-20 mx-auto mb-6" />
-                <p className="text-muted-foreground text-xl font-medium">
-                  Nenhum prazo encontrado com este filtro.
-                </p>
-                <Button variant="outline" onClick={() => setFiltroStatus(null)} className="mt-8 rounded-xl font-bold border-2">Ver todos os prazos</Button>
-              </div>
-            ) : (
+          {/* Calendar Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3">
               <CalendarPrazos prazos={prazosFiltrados} />
-            )}
+            </div>
+
+            <div className="space-y-6">
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold">Filtros</h3>
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                </div>
+                {/* ... filtros ... */}
+              </Card>
+            </div>
           </div>
+          </>
+          )}
         </div>
       </main>
     </div>

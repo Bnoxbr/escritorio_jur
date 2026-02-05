@@ -1,7 +1,16 @@
 import { useLocation } from "wouter";
-import { FileText, LayoutDashboard, Calendar, AlertCircle, Settings, LogOut } from "lucide-react";
+import { 
+  FileText, 
+  LayoutDashboard, 
+  Calendar, 
+  AlertCircle, 
+  Settings, 
+  LogOut,
+  Gavel
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import ThemeToggle from "./ThemeToggle";
+import ThemeToggle from "./ThemeToggle"; // Mantendo a importação relativa ao mesmo nível
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -13,40 +22,42 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: FileText, label: "Processos", path: "/processos" },
+    { icon: Gavel, label: "Processos", path: "/processos" },
     { icon: Calendar, label: "Prazos", path: "/prazos" },
     { icon: Calendar, label: "Calendário", path: "/calendario" },
     { icon: AlertCircle, label: "Alertas", path: "/alertas" },
     { icon: FileText, label: "Documentos", path: "/documentos" },
-    { icon: Settings, label: "Configurações", path: "/configuracoes" },
   ];
-
-  const isActive = (path: string) => location === path;
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen w-72 bg-white text-foreground border-r-2 border-border/50 shadow-2xl transform transition-transform duration-300 z-40 ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } md:translate-x-0 md:relative md:w-72`}
+      className={cn(
+        "fixed left-4 top-4 bottom-4 w-72 z-50 transition-all duration-300 ease-in-out",
+        "bg-[#4A0404] text-white rounded-[2.5rem] shadow-2xl border border-white/10 flex flex-col",
+        !isOpen ? "-translate-x-[110%] opacity-0" : "translate-x-0 opacity-100",
+        "md:translate-x-0 md:relative md:ml-0"
+      )}
     >
-      {/* Header */}
-      <div className="p-8 border-b-2 border-border/50 bg-white">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-            <FileText className="w-7 h-7 text-white" />
-          </div>
-          <div>
-            <h1 className="font-bold text-xl tracking-tight text-primary">Secretário</h1>
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Jurídico</p>
-          </div>
+      {/* Branding - Dra. Caroline Vilas Boas */}
+      <div className="p-8 border-b border-white/5">
+        <div 
+          className="flex flex-col gap-1 group cursor-pointer" 
+          onClick={() => navigate("/dashboard")}
+        >
+          <h1 className="font-serif text-2xl italic text-[#D4AF37] tracking-tight leading-tight group-hover:text-[#F1E5AC] transition-colors">
+            Dra. Caroline
+          </h1>
+          <p className="text-[10px] text-white/50 font-sans uppercase tracking-[0.4em] font-bold">
+            Vilas Boas
+          </p>
         </div>
       </div>
 
-      {/* Menu */}
-      <nav className="p-6 space-y-3">
+      {/* Navigation Menu */}
+      <nav className="flex-1 p-6 space-y-2 overflow-y-auto scrollbar-none">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.path);
+          const active = location === item.path;
 
           return (
             <button
@@ -55,30 +66,53 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                 navigate(item.path);
                 onClose?.();
               }}
-              className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 group ${
+              className={cn(
+                "w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl transition-all duration-300 group",
                 active
-                  ? "bg-primary text-white shadow-xl shadow-primary/20 scale-105"
-                  : "text-muted-foreground hover:bg-secondary hover:text-primary"
-              }`}
+                  ? "bg-[#D4AF37] text-[#4A0404] shadow-lg shadow-[#D4AF37]/20 scale-[1.02] font-bold"
+                  : "text-white/60 hover:bg-white/5 hover:text-[#D4AF37]"
+              )}
             >
-              <Icon className={`w-6 h-6 ${active ? "text-white" : "group-hover:text-primary transition-colors"}`} />
-              <span className="font-bold text-base">{item.label}</span>
+              <Icon className={cn(
+                "w-5 h-5 transition-transform duration-300",
+                active ? "text-[#4A0404]" : "text-[#D4AF37] group-hover:scale-110"
+              )} />
+              <span className="text-sm italic tracking-wide">
+                {item.label}
+              </span>
             </button>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 border-t-2 border-border/50 bg-white space-y-4">
-        <ThemeToggle />
-        <Button
-          onClick={() => navigate("/")}
-          variant="outline"
-          className="w-full justify-start gap-3 py-6 px-5 text-red-600 border-2 border-red-100 hover:bg-red-50 hover:border-red-200 rounded-2xl font-bold"
-        >
-          <LogOut className="w-5 h-5" />
-          Sair do Sistema
-        </Button>
+      {/* Footer - Preferências e Sessão */}
+      <div className="p-6 border-t border-white/5 space-y-4 bg-black/10 rounded-b-[2.5rem]">
+        <div className="flex items-center justify-between px-2">
+          <span className="text-[9px] uppercase tracking-[0.2em] text-white/30 font-bold">Interface</span>
+          <ThemeToggle />
+        </div>
+        
+        <div className="space-y-1">
+          <button
+            onClick={() => navigate("/configuracoes")}
+            className={cn(
+              "w-full flex items-center gap-3 px-4 py-2 transition-colors text-[11px] uppercase tracking-tighter font-semibold",
+              location === "/configuracoes" ? "text-[#D4AF37]" : "text-white/40 hover:text-white"
+            )}
+          >
+            <Settings className="w-4 h-4" />
+            Configurações
+          </button>
+
+          <Button
+            onClick={handleLogout}
+            variant="ghost"
+            className="w-full justify-start gap-3 py-6 px-4 text-red-400/70 hover:text-red-400 hover:bg-red-400/5 rounded-2xl transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-[10px] uppercase tracking-[0.2em] font-bold">Sair do Sistema</span>
+          </Button>
+        </div>
       </div>
     </aside>
   );

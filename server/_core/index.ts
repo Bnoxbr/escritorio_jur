@@ -2,10 +2,6 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerAuthRoutes } from "./auth.js";
-import { appRouter } from "../routers.js";
-import { createContext } from "./context.js";
 import { serveStatic, setupVite } from "./vite.js";
 
 // 1. Criamos a instância do App fora da função para poder exportá-la
@@ -15,16 +11,6 @@ const server = createServer(app);
 // Configurações básicas de Middleware
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// Rotas de Autenticação e tRPC
-registerAuthRoutes(app);
-app.use(
-  "/api/trpc",
-  createExpressMiddleware({
-    router: appRouter,
-    createContext,
-  })
-);
 
 // 2. Exportamos o 'app' para o arquivo api/index.ts (Vercel)
 export { app };

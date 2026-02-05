@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useProcessos } from "@/contexts/ProcessosContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,65 +6,169 @@ import Sidebar from "@/components/Sidebar";
 import DocumentUpload from "@/components/DocumentUpload";
 import DocumentViewer from "@/components/DocumentViewer";
 import { FileText, Download, Trash2, Eye, Menu, Plus } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/_core/hooks/useAuth";
+import type { Documento as DocumentoType } from "@/types/supabase-types";
+import { toast } from "sonner";
 
-interface Documento {
-  id: string;
-  nome: string;
-  url: string;
-  tamanho: number;
-  tipo: string;
-  dataUpload: string;
-  processId: string;
+interface DocumentoWithUrl extends DocumentoType {
+  url: string; // URL assinada ou pública
+  dataUpload: string; // Formatada para exibição
 }
 
 export default function Documentos() {
   const { processos } = useProcessos();
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [documentos, setDocumentos] = useState<Documento[]>([]);
-  const [processoSelecionado, setProcessoSelecionado] = useState<string | null>(null);
+  const [documentos, setDocumentos] = useState<DocumentoWithUrl[]>([]);
+  const [processoSelecionado, setProcessoSelecionado] = useState<number | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [viewerDoc, setViewerDoc] = useState<Documento | null>(null);
+  const [viewerDoc, setViewerDoc] = useState<DocumentoWithUrl | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleUpload = (files: File[]) => {
-    // Simular upload de documentos
-    const novosDocumentos = files.map((file) => ({
-      id: Math.random().toString(36).substr(2, 9),
-      nome: file.name,
-      url: URL.createObjectURL(file), // Em produção, seria a URL do S3
-      tamanho: file.size,
-      tipo: file.type,
-      dataUpload: new Date().toLocaleString("pt-BR"),
-      processId: processoSelecionado || "geral",
-    }));
+  const fetchDocumentos = useCallback(async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      let query = supabase
+        .from("documentos")
+        .select("*")
+        .eq("userId", user.id)
+        .order("createdAt", { ascending: false });
 
-    setDocumentos((prev) => [...prev, ...novosDocumentos]);
-    setShowUpload(false);
+      if (processoSelecionado) {
+        query = query.eq("processoId", processoSelecionado);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      // Mapear para incluir URL assinada e data formatada
+      const docsWithUrls = await Promise.all(
+        (data || []).map(async (doc) => {
+          let url = doc.url;
+          // Se for caminho relativo (armazenado no bucket), gerar URL assinada
+          if (doc.fileKey) {
+            const { data: signedData } = await supabase.storage
+              .from("documentos")
+              .createSignedUrl(doc.fileKey, 3600); // 1 hora
+            if (signedData) url = signedData.signedUrl;
+          }
+
+          return {
+            ...doc,
+            url,
+            dataUpload: new Date(doc.createdAt).toLocaleString("pt-BR"),
+          };
+        })
+      );
+
+      setDocumentos(docsWithUrls);
+    } catch (error) {
+      console.error("Erro ao buscar documentos:", error);
+      toast.error("Erro ao carregar documentos.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, processoSelecionado]);
+
+  useEffect(() => {
+    fetchDocumentos();
+  }, [fetchDocumentos]);
+
+  const handleUpload = async (files: File[]) => {
+    if (!user) return;
+    
+    try {
+      const novosDocs = [];
+      
+      for (const file of files) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        // 1. Upload para Storage
+        const { error: uploadError } = await supabase.storage
+          .from("documentos")
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // 2. Salvar metadados no Banco
+        const { data: docData, error: dbError } = await supabase
+          .from("documentos")
+          .insert({
+            userId: user.id,
+            nome: file.name,
+            fileKey: filePath,
+            url: "", // Será gerada dinamicamente ou pode ser a pública se bucket for público
+            tamanho: file.size,
+            tipo: file.type.includes('pdf') ? 'pdf' : file.type.includes('image') ? 'imagem' : 'outro',
+            processoId: processoSelecionado || null,
+            numeroProcesso: processoSelecionado ? processos.find(p => p.id === processoSelecionado)?.numeroProcesso : null
+          })
+          .select()
+          .single();
+
+        if (dbError) throw dbError;
+        novosDocs.push(docData);
+      }
+
+      toast.success(`${novosDocs.length} documento(s) enviado(s)!`);
+      setShowUpload(false);
+      fetchDocumentos(); // Recarregar lista
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      toast.error("Erro ao enviar documentos. Verifique se o bucket 'documentos' existe.");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setDocumentos((prev) => prev.filter((doc) => doc.id !== id));
+  const handleDelete = async (id: number, fileKey: string | null) => {
+    try {
+      // 1. Deletar do Storage se tiver key
+      if (fileKey) {
+        const { error: storageError } = await supabase.storage
+          .from("documentos")
+          .remove([fileKey]);
+        
+        if (storageError) console.error("Erro ao deletar arquivo do storage:", storageError);
+      }
+
+      // 2. Deletar do Banco
+      const { error: dbError } = await supabase
+        .from("documentos")
+        .delete()
+        .eq("id", id);
+
+      if (dbError) throw dbError;
+
+      setDocumentos((prev) => prev.filter((doc) => doc.id !== id));
+      toast.success("Documento removido!");
+    } catch (error) {
+      console.error("Erro ao deletar documento:", error);
+      toast.error("Erro ao remover documento.");
+    }
   };
 
-  const handleDownload = (doc: Documento) => {
+  const handleDownload = (doc: DocumentoWithUrl) => {
     const link = document.createElement("a");
     link.href = doc.url;
     link.download = doc.nome;
+    link.target = "_blank";
     link.click();
   };
 
-  const documentosFiltrados = processoSelecionado
-    ? documentos.filter((doc) => doc.processId === processoSelecionado)
-    : documentos;
-
-  const getFileIcon = (tipo: string) => {
+  const getFileIcon = (tipo: string | null) => {
+    if (!tipo) return "📎";
     if (tipo.includes("pdf")) return "📄";
-    if (tipo.includes("image")) return "🖼️";
-    if (tipo.includes("word")) return "📝";
+    if (tipo.includes("image") || tipo === "imagem") return "🖼️";
+    if (tipo.includes("word") || tipo === "documento") return "📝";
     return "📎";
   };
 
-  const formatarTamanho = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
+  const formatarTamanho = (bytes: number | null) => {
+    if (!bytes) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -102,10 +206,10 @@ export default function Documentos() {
                   : "bg-white text-foreground border-2 border-border hover:border-primary/50"
               }`}
             >
-              Todos os Arquivos ({documentos.length})
+              Todos os Arquivos
             </Button>
             {processos.slice(0, 5).map((processo) => {
-              const count = documentos.filter((doc) => doc.processId === processo.id).length;
+              // Contagem pode ser imprecisa se não carregarmos tudo, mas ok por agora
               return (
                 <Button
                   key={processo.id}
@@ -116,7 +220,7 @@ export default function Documentos() {
                       : "bg-white text-foreground border-2 border-border hover:border-primary/50"
                   }`}
                 >
-                  {processo.numeroProcesso} ({count})
+                  {processo.numeroProcesso}
                 </Button>
               );
             })}
@@ -141,7 +245,12 @@ export default function Documentos() {
           )}
 
           {/* Lista de Documentos */}
-          {documentosFiltrados.length === 0 ? (
+          {isLoading ? (
+             <div className="p-20 flex flex-col items-center gap-4">
+               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+               <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Carregando documentos...</p>
+             </div>
+          ) : documentos.length === 0 ? (
             <Card className="p-20 border-2 border-border/50 bg-white text-center rounded-[2.5rem] shadow-xl">
               <div className="w-24 h-24 bg-secondary/50 rounded-full flex items-center justify-center mx-auto mb-8">
                 <FileText className="w-12 h-12 text-muted-foreground opacity-30" />
@@ -152,7 +261,7 @@ export default function Documentos() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {documentosFiltrados.map((doc) => (
+              {documentos.map((doc) => (
                 <Card
                   key={doc.id}
                   className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all rounded-4xl flex flex-col group hover:-translate-y-1"
@@ -181,7 +290,7 @@ export default function Documentos() {
                         <Download className="w-5 h-5" />
                       </Button>
                       <Button
-                        onClick={() => handleDelete(doc.id)}
+                        onClick={() => handleDelete(doc.id, doc.fileKey)}
                         size="icon"
                         variant="outline"
                         className="w-10 h-10 rounded-xl border-2 text-red-600 hover:bg-red-50 hover:border-red-200"
@@ -213,7 +322,7 @@ export default function Documentos() {
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Processo:{" "}
                         <span className="text-primary">
-                          {processos.find((p) => p.id === doc.processId)?.numeroProcesso || "Geral"}
+                          {doc.numeroProcesso || "Geral"}
                         </span>
                       </p>
                     </div>

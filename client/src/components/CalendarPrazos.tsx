@@ -12,7 +12,7 @@ interface Prazo {
   descricao: string;
   dataPrazo: Date;
   status: "vencido" | "urgente" | "proximo" | "normal";
-  processId: string;
+  processId: number;
 }
 
 interface CalendarPrazosProps {

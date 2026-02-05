@@ -2,19 +2,54 @@ import { useProcessos } from "@/contexts/ProcessosContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
-import { AlertCircle, Clock, CheckCircle2, FileText, TrendingUp, Menu, Calendar } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, Clock, CheckCircle2, FileText, TrendingUp, Menu, Calendar, Bell } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { Database } from "@/types/supabase-types";
+import { useAuth } from "@/_core/hooks/useAuth";
+
+type PainelUrgencia = Database['public']['Views']['vw_painel_urgencias']['Row'];
+type NotificacaoPendente = Database['public']['Views']['vw_notificacoes_pendentes']['Row'];
 
 export default function Dashboard() {
-  const { processos, obterProcessosPorStatus, obterProcessosProximosAVencer, isLoading } = useProcessos();
+  const { processos, obterProcessosPorStatus, isLoading: isLoadingContext } = useProcessos();
   const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { user } = useAuth();
+  
+  // States para Views SQL
+  const [urgencias, setUrgencias] = useState<PainelUrgencia[]>([]);
+  const [notificacoes, setNotificacoes] = useState<NotificacaoPendente[]>([]);
+  const [isLoadingViews, setIsLoadingViews] = useState(true);
+
+  useEffect(() => {
+    const fetchViews = async () => {
+      if (!user) return;
+      try {
+        const [urgenciasRes, notificacoesRes] = await Promise.all([
+          supabase.from('vw_painel_urgencias').select('*'),
+          supabase.from('vw_notificacoes_pendentes').select('*')
+        ]);
+
+        if (urgenciasRes.error) throw urgenciasRes.error;
+        if (notificacoesRes.error) throw notificacoesRes.error;
+
+        setUrgencias(urgenciasRes.data || []);
+        setNotificacoes(notificacoesRes.data || []);
+      } catch (error) {
+        console.error("Erro ao carregar views do dashboard:", error);
+      } finally {
+        setIsLoadingViews(false);
+      }
+    };
+
+    fetchViews();
+  }, [user]);
 
   const processosAtivos = obterProcessosPorStatus("ativo");
-  const processosUrgentes = obterProcessosPorStatus("urgente");
-  const processosProximosAVencer = obterProcessosProximosAVencer(7);
   const processosVeredicto = obterProcessosPorStatus("veredicto");
 
+  // Combinar dados do Context com Views
   const processosFiltrados = filtroStatus
     ? processos.filter((p) => p.status === filtroStatus)
     : processos;
@@ -63,6 +98,8 @@ export default function Dashboard() {
         return status;
     }
   };
+
+  const isLoading = isLoadingContext || isLoadingViews;
 
   return (
     <div className="flex h-screen bg-secondary/30">
@@ -115,11 +152,11 @@ export default function Dashboard() {
             <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center group-hover:bg-amber-500 transition-colors">
-                  <Clock className="w-7 h-7 text-amber-600 group-hover:text-white transition-colors" />
+                  <Bell className="w-7 h-7 text-amber-600 group-hover:text-white transition-colors" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Próximos</p>
-                  <p className="text-4xl font-bold text-amber-600">{processosProximosAVencer.length}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Notificações</p>
+                  <p className="text-4xl font-bold text-amber-600">{notificacoes.length}</p>
                 </div>
               </div>
             </Card>
@@ -130,8 +167,8 @@ export default function Dashboard() {
                   <AlertCircle className="w-7 h-7 text-red-600 group-hover:text-white transition-colors" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Urgentes</p>
-                  <p className="text-4xl font-bold text-red-600">{processosUrgentes.length}</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Urgentes (View)</p>
+                  <p className="text-4xl font-bold text-red-600">{urgencias.length}</p>
                 </div>
               </div>
             </Card>
@@ -180,7 +217,7 @@ export default function Dashboard() {
                   : "bg-white text-foreground border-2 border-border hover:border-amber-600/50"
               }`}
             >
-              Próximos ({processosProximosAVencer.length})
+              Próximos
             </Button>
             <Button
               onClick={() => setFiltroStatus("urgente")}
@@ -190,7 +227,7 @@ export default function Dashboard() {
                   : "bg-white text-foreground border-2 border-border hover:border-red-600/50"
               }`}
             >
-              Urgentes ({processosUrgentes.length})
+              Urgentes ({urgencias.length})
             </Button>
           </div>
 
@@ -211,7 +248,7 @@ export default function Dashboard() {
               </Card>
             ) : (
               processosFiltrados.map((processo) => {
-                const diasAteVencimento = calcularDiasAteVencimento(processo.proximoPrazo);
+                const diasAteVencimento = processo.proximoPrazo ? calcularDiasAteVencimento(processo.proximoPrazo) : null;
                 const statusStyles = getStatusStyles(processo.status);
 
                 return (
