@@ -5,61 +5,82 @@ import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
 import DocumentUpload from "@/components/DocumentUpload";
 import DocumentViewer from "@/components/DocumentViewer";
-import { FileText, Download, Trash2, Eye, Menu, Plus } from "lucide-react";
+import { FileText, Download, Trash2, Eye, Menu, Plus, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/_core/hooks/useAuth";
-import type { Documento as DocumentoType } from "@/types/supabase-types";
 import { toast } from "sonner";
 
-interface DocumentoWithUrl extends DocumentoType {
-  url: string; // URL assinada ou pública
-  dataUpload: string; // Formatada para exibição
+// Definição local do tipo para garantir que bata com o banco (snake_case)
+interface DocumentoLocal {
+  id: number;
+  user_id: string;
+  nome: string;
+  file_key: string;     // Caminho no bucket
+  url: string | null;   // URL pública (se houver)
+  tamanho: number;
+  tipo: string;
+  processo_id: number | null;
+  numero_processo: string | null;
+  created_at: string;
 }
+
+// Extensão para uso no frontend (display)
+interface DocumentoDisplay extends DocumentoLocal {
+  url_assinada: string;
+  data_formatada: string;
+}
+
+// O NOME DO BUCKET QUE CRIAMOS
+const BUCKET_NAME = "documentos_processos";
 
 export default function Documentos() {
   const { processos } = useProcessos();
   const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [documentos, setDocumentos] = useState<DocumentoWithUrl[]>([]);
+  const [documentos, setDocumentos] = useState<DocumentoDisplay[]>([]);
   const [processoSelecionado, setProcessoSelecionado] = useState<number | null>(null);
   const [showUpload, setShowUpload] = useState(false);
-  const [viewerDoc, setViewerDoc] = useState<DocumentoWithUrl | null>(null);
+  const [viewerDoc, setViewerDoc] = useState<DocumentoDisplay | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // --- BUSCAR DOCUMENTOS ---
   const fetchDocumentos = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
     try {
+      // 1. Query no Banco (usando nomes snake_case)
       let query = supabase
         .from("documentos")
         .select("*")
-        .eq("userId", user.id)
-        .order("createdAt", { ascending: false });
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (processoSelecionado) {
-        query = query.eq("processoId", processoSelecionado);
+        query = query.eq("processo_id", processoSelecionado);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      // Mapear para incluir URL assinada e data formatada
+      // 2. Gerar URLs assinadas (para conseguir ver o arquivo privado)
       const docsWithUrls = await Promise.all(
-        (data || []).map(async (doc) => {
-          let url = doc.url;
-          // Se for caminho relativo (armazenado no bucket), gerar URL assinada
-          if (doc.fileKey) {
+        (data || []).map(async (doc: DocumentoLocal) => {
+          let url_final = doc.url || "";
+          
+          // Se tiver file_key, pede permissão temporária ao Storage
+          if (doc.file_key) {
             const { data: signedData } = await supabase.storage
-              .from("documentos")
-              .createSignedUrl(doc.fileKey, 3600); // 1 hora
-            if (signedData) url = signedData.signedUrl;
+              .from(BUCKET_NAME)
+              .createSignedUrl(doc.file_key, 3600); // Link válido por 1 hora
+            
+            if (signedData) url_final = signedData.signedUrl;
           }
 
           return {
             ...doc,
-            url,
-            dataUpload: new Date(doc.createdAt).toLocaleString("pt-BR"),
+            url_assinada: url_final,
+            data_formatada: new Date(doc.created_at).toLocaleString("pt-BR"),
           };
         })
       );
@@ -67,7 +88,7 @@ export default function Documentos() {
       setDocumentos(docsWithUrls);
     } catch (error) {
       console.error("Erro ao buscar documentos:", error);
-      toast.error("Erro ao carregar documentos.");
+      toast.error("Erro ao carregar lista de documentos.");
     } finally {
       setIsLoading(false);
     }
@@ -77,6 +98,7 @@ export default function Documentos() {
     fetchDocumentos();
   }, [fetchDocumentos]);
 
+  // --- UPLOAD DE ARQUIVOS ---
   const handleUpload = async (files: File[]) => {
     if (!user) return;
     
@@ -84,55 +106,63 @@ export default function Documentos() {
       const novosDocs = [];
       
       for (const file of files) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        // Sanitiza o nome (remove acentos e espaços para evitar erro no servidor)
+        const cleanName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.]/g, "_");
+        const fileName = `${Date.now()}_${cleanName}`;
         const filePath = `${user.id}/${fileName}`;
 
-        // 1. Upload para Storage
+        // 1. Enviar arquivo para o Storage (BUCKET CORRETO)
         const { error: uploadError } = await supabase.storage
-          .from("documentos")
+          .from(BUCKET_NAME) 
           .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        // 2. Salvar metadados no Banco
+        // 2. Salvar referência no Banco (COLUNAS snake_case)
         const { data: docData, error: dbError } = await supabase
           .from("documentos")
           .insert({
-            userId: user.id,
-            nome: file.name,
-            fileKey: filePath,
-            url: "", // Será gerada dinamicamente ou pode ser a pública se bucket for público
+            user_id: user.id,
+            nome: file.name, // Nome original para exibição
+            file_key: filePath,
             tamanho: file.size,
             tipo: file.type.includes('pdf') ? 'pdf' : file.type.includes('image') ? 'imagem' : 'outro',
-            processoId: processoSelecionado || null,
-            numeroProcesso: processoSelecionado ? processos.find(p => p.id === processoSelecionado)?.numeroProcesso : null
+            processo_id: processoSelecionado || null,
+            numero_processo: processoSelecionado ? processos.find(p => p.id === processoSelecionado)?.numeroProcesso : null
           })
           .select()
           .single();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+          // Rollback: se falhar no banco, deleta o arquivo para não ficar lixo
+          await supabase.storage.from(BUCKET_NAME).remove([filePath]);
+          throw dbError;
+        }
+        
         novosDocs.push(docData);
       }
 
-      toast.success(`${novosDocs.length} documento(s) enviado(s)!`);
+      toast.success(`${novosDocs.length} documento(s) enviado(s) com sucesso!`);
       setShowUpload(false);
-      fetchDocumentos(); // Recarregar lista
-    } catch (error) {
+      fetchDocumentos(); // Atualiza a lista na tela
+    } catch (error: any) {
       console.error("Erro no upload:", error);
-      toast.error("Erro ao enviar documentos. Verifique se o bucket 'documentos' existe.");
+      toast.error(error.message || "Erro ao enviar documentos. Verifique o console.");
     }
   };
 
+  // --- DELETAR DOCUMENTOS ---
   const handleDelete = async (id: number, fileKey: string | null) => {
+    if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+
     try {
-      // 1. Deletar do Storage se tiver key
+      // 1. Deletar do Storage primeiro
       if (fileKey) {
         const { error: storageError } = await supabase.storage
-          .from("documentos")
+          .from(BUCKET_NAME)
           .remove([fileKey]);
         
-        if (storageError) console.error("Erro ao deletar arquivo do storage:", storageError);
+        if (storageError) console.warn("Arquivo não encontrado no storage, removendo do banco...");
       }
 
       // 2. Deletar do Banco
@@ -146,19 +176,21 @@ export default function Documentos() {
       setDocumentos((prev) => prev.filter((doc) => doc.id !== id));
       toast.success("Documento removido!");
     } catch (error) {
-      console.error("Erro ao deletar documento:", error);
+      console.error("Erro ao deletar:", error);
       toast.error("Erro ao remover documento.");
     }
   };
 
-  const handleDownload = (doc: DocumentoWithUrl) => {
+  // --- DOWNLOAD ---
+  const handleDownload = (doc: DocumentoDisplay) => {
     const link = document.createElement("a");
-    link.href = doc.url;
+    link.href = doc.url_assinada;
     link.download = doc.nome;
     link.target = "_blank";
     link.click();
   };
 
+  // --- ÍCONES ---
   const getFileIcon = (tipo: string | null) => {
     if (!tipo) return "📎";
     if (tipo.includes("pdf")) return "📄";
@@ -208,22 +240,19 @@ export default function Documentos() {
             >
               Todos os Arquivos
             </Button>
-            {processos.slice(0, 5).map((processo) => {
-              // Contagem pode ser imprecisa se não carregarmos tudo, mas ok por agora
-              return (
-                <Button
-                  key={processo.id}
-                  onClick={() => setProcessoSelecionado(processo.id)}
-                  className={`rounded-xl font-bold transition-all px-6 py-6 ${
-                    processoSelecionado === processo.id
-                      ? "bg-primary text-white shadow-xl shadow-primary/20"
-                      : "bg-white text-foreground border-2 border-border hover:border-primary/50"
-                  }`}
-                >
-                  {processo.numeroProcesso}
-                </Button>
-              );
-            })}
+            {processos.slice(0, 5).map((processo) => (
+              <Button
+                key={processo.id}
+                onClick={() => setProcessoSelecionado(processo.id)}
+                className={`rounded-xl font-bold transition-all px-6 py-6 ${
+                  processoSelecionado === processo.id
+                    ? "bg-primary text-white shadow-xl shadow-primary/20"
+                    : "bg-white text-foreground border-2 border-border hover:border-primary/50"
+                }`}
+              >
+                {processo.numeroProcesso}
+              </Button>
+            ))}
           </div>
 
           {/* Botão Upload */}
@@ -237,7 +266,7 @@ export default function Documentos() {
             </Button>
           </div>
 
-          {/* Área de Upload */}
+          {/* Área de Upload (Componente Filho) */}
           {showUpload && (
             <Card className="p-10 mb-12 border-2 border-primary/20 rounded-[2.5rem] bg-white shadow-2xl animate-in zoom-in duration-300">
               <DocumentUpload onUpload={handleUpload} />
@@ -247,7 +276,7 @@ export default function Documentos() {
           {/* Lista de Documentos */}
           {isLoading ? (
              <div className="p-20 flex flex-col items-center gap-4">
-               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+               <Loader2 className="w-12 h-12 text-primary animate-spin" />
                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Carregando documentos...</p>
              </div>
           ) : documentos.length === 0 ? (
@@ -290,7 +319,7 @@ export default function Documentos() {
                         <Download className="w-5 h-5" />
                       </Button>
                       <Button
-                        onClick={() => handleDelete(doc.id, doc.fileKey)}
+                        onClick={() => handleDelete(doc.id, doc.file_key)}
                         size="icon"
                         variant="outline"
                         className="w-10 h-10 rounded-xl border-2 text-red-600 hover:bg-red-50 hover:border-red-200"
@@ -312,7 +341,7 @@ export default function Documentos() {
                     </div>
                     <div className="flex justify-between">
                       <span>Upload em:</span>
-                      <span className="text-foreground">{doc.dataUpload}</span>
+                      <span className="text-foreground">{doc.data_formatada}</span>
                     </div>
                   </div>
 
@@ -322,7 +351,7 @@ export default function Documentos() {
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Processo:{" "}
                         <span className="text-primary">
-                          {doc.numeroProcesso || "Geral"}
+                          {doc.numero_processo || "Geral"}
                         </span>
                       </p>
                     </div>
@@ -337,7 +366,7 @@ export default function Documentos() {
       {/* Visualizador de Documentos */}
       {viewerDoc && (
         <DocumentViewer
-          url={viewerDoc.url}
+          url={viewerDoc.url_assinada}
           fileName={viewerDoc.nome}
           onClose={() => setViewerDoc(null)}
         />
