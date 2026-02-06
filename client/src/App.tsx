@@ -6,6 +6,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ProcessosProvider, useProcessos } from "./contexts/ProcessosContext";
 import { useAuth } from "./_core/hooks/useAuth";
+
+// Imports das Páginas
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
@@ -15,6 +17,10 @@ import Alertas from "./pages/Alertas";
 import Documentos from "./pages/Documentos";
 import Calendario from "./pages/Calendario";
 import Configuracoes from "./pages/Configuracoes";
+
+// 👇👇 A CORREÇÃO OBRIGATÓRIA ESTÁ AQUI 👇👇
+import LoginDemo from "./pages/LoginDemo"; 
+// 👆👆 SEM ISSO, O BUILD DE PRODUÇÃO QUEBRA 👆👆
 
 function Router() {
   const { onboardingCompleto } = useProcessos();
@@ -34,6 +40,8 @@ function Router() {
       <Route path={"/documentos"} component={Documentos} />
       <Route path={"/agenda"} component={Calendario} />
       <Route path={"/calendario"} component={Calendario} />
+      <Route path={"/configuracoes"} component={Configuracoes} />
+      <Route component={NotFound} />
     </Switch>
   );
 }

@@ -15,6 +15,8 @@ interface ProcessosContextType {
   obterProcessosProximosAVencer: (dias: number) => Processo[];
   onboardingCompleto: boolean;
   setOnboardingCompleto: (completo: boolean) => void;
+  isDemoMode: boolean;
+  setIsDemoMode: (isDemo: boolean) => void;
 }
 
 const ProcessosContext = createContext<ProcessosContextType | undefined>(undefined);

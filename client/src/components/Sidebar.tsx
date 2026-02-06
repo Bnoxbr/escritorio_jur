@@ -9,8 +9,12 @@ import {
   Gavel
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import ThemeToggle from "./ThemeToggle"; // Mantendo a importação relativa ao mesmo nível
+import ThemeToggle from "./ThemeToggle"; 
 import { cn } from "@/lib/utils";
+
+// 👇 NOVOS IMPORTS NECESSÁRIOS
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useProcessos } from "@/contexts/ProcessosContext";
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -19,6 +23,23 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const [location, navigate] = useLocation();
+  
+  // 👇 HOOKS PARA LÓGICA DE LOGOUT
+  const { logout } = useAuth();
+  const { setIsDemoMode } = useProcessos();
+
+  // 👇 DEFINIÇÃO DA FUNÇÃO QUE ESTAVA FALTANDO
+  const handleLogout = async () => {
+    // 1. Limpa o estado do Modo Demo
+    setIsDemoMode(false);
+    localStorage.removeItem("isDemoMode");
+
+    // 2. Realiza o Logout no Supabase
+    await logout();
+
+    // 3. Redireciona para a tela inicial (Login)
+    navigate("/");
+  };
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
