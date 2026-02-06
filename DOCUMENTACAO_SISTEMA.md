@@ -1,5 +1,7 @@
 # Documentação do Agente Jurídico
 
+**Última Atualização:** 2026-02-06
+
 Este documento fornece uma visão geral técnica e funcional do sistema Agente Jurídico, detalhando a estrutura de navegação, as funcionalidades principais e o fluxo de dados.
 
 ## 1. Estrutura do Sistema (Abas e Funcionalidades)
@@ -52,28 +54,23 @@ O sistema é composto por uma interface web moderna (React) organizada em um men
 
 ---
 
-## 2. Diagrama de Requisição e Arquitetura
+## 2. Arquitetura e Fluxo de Dados
 
-O sistema opera em uma arquitetura Cliente-Servidor desacoplada, utilizando **React (Vite)** no frontend e **Express (Node.js)** no backend.
+O sistema opera em uma arquitetura **Serverless / Event-Driven**, utilizando **React (Vite)** no frontend e **Supabase** como backend completo (Database, Auth, Storage, Edge Functions).
 
 ### **Fluxo de Autenticação e Dados**
 
 1.  **Cliente (Frontend):**
-    - O usuário acessa a aplicação via navegador.
-    - Em ambiente de desenvolvimento, o Vite atua como servidor de arquivos estáticos e proxy.
+    - Aplicação React hospedada (Vite).
+    - Comunica-se diretamente com o Supabase via SDK (`@supabase/supabase-js`).
 
-2.  **Requisição API (`/api/*`):**
-    - Todas as chamadas de dados são prefixadas com `/api`.
-    - O proxy (configurado no `vite.config.ts`) encaminha essas requisições para o servidor Express na porta 3000.
+2.  **Camada de Dados (Supabase):**
+    - **PostgreSQL**: Banco de dados relacional com tabelas em `snake_case`.
+    - **RLS (Row Level Security)**: Garante que cada usuário só acesse seus próprios dados (`user_id = auth.uid()`).
 
-3.  **Middleware de Autenticação (`sdk.ts`):**
-    - Ao receber uma requisição, o servidor verifica o cookie de sessão (`agente-jur-session`).
-    - **Modo Desenvolvimento:** Se não houver sessão válida, o sistema cria automaticamente um "Usuário Dev" e autentica a requisição, permitindo fluxo contínuo sem login externo.
-    - **Modo Produção:** Exige um token de sessão válido validado contra o banco de dados.
-
-4.  **Processamento e Resposta:**
-    - O servidor processa a regra de negócio (banco de dados, lógica jurídica).
-    - Retorna uma resposta JSON para o frontend.
+3.  **Processamento de IA (Edge Functions):**
+    - Ao fazer upload de um documento, um **Database Webhook** aciona uma função Deno.
+    - A função processa o PDF, chama o LLM (Llama 3) e salva o resultado JSON no banco.
 
 ### **Diagrama Lógico Simplificado**
 
@@ -81,36 +78,32 @@ O sistema opera em uma arquitetura Cliente-Servidor desacoplada, utilizando **Re
 sequenceDiagram
     participant User as Usuário
     participant Client as Frontend (React)
-    participant Proxy as Vite Proxy
-    participant Server as Backend (Express)
-    participant DB as Banco de Dados
+    participant Supabase as Supabase API
+    participant DB as PostgreSQL
+    participant AI as Edge Function (AI)
 
-    User->>Client: Acessa /dashboard
-    Client->>Proxy: GET /api/user (Verificar Sessão)
-    Proxy->>Server: Forward Request
+    User->>Client: Acessa Dashboard
+    Client->>Supabase: Request (Auth/Data)
+    Supabase->>DB: Query (RLS Applied)
+    DB-->>Client: JSON Data
     
-    alt Sessão Válida
-        Server->>DB: Busca dados do usuário
-        DB-->>Server: Retorna User
-        Server-->>Client: 200 OK (JSON)
-    else Sem Sessão (Dev Mode)
-        Server->>Server: Cria/Recupera Dev User
-        Server-->>Client: 200 OK (Set-Cookie)
-    end
-
-    Client->>User: Renderiza Dashboard
+    User->>Client: Upload PDF
+    Client->>Supabase: Upload to Storage
+    Supabase->>AI: Trigger Webhook
+    AI->>AI: Analyze & Extract
+    AI->>DB: Insert Insight JSON
+    DB-->>Client: Realtime Update
 ```
 
 ---
 
 ## 3. Próximos Passos Sugeridos
 
-Com a base limpa e o sistema de autenticação próprio estabelecido, os próximos passos recomendados para a evolução do trabalho são:
+Com a infraestrutura base (Database + AI) estabelecida, os próximos passos focam na experiência do usuário e refinamento da IA:
 
-1.  **Refinamento do Dashboard:** Implementar widgets reais conectados aos dados do banco.
-2.  **Módulo de Processos:** Criar o CRUD completo de processos (Create, Read, Update, Delete).
-3.  **Sistema de Notificações:** Implementar lógica real de alertas baseada nas datas dos prazos.
-4.  **Testes de Integração:** Expandir a cobertura de testes para garantir a estabilidade das novas rotas de API.
+1.  **Interface de Feedback:** Componente visual para exibir o JSON da IA de forma amigável (Cards de Urgência).
+2.  **Chat com Documento (RAG):** Permitir perguntas diretas ao PDF ("Qual o valor da causa?").
+3.  **Refinamento de Prompt:** Melhorar a precisão para casos específicos (Trabalhista vs Cível).
 
 ---
 **Autor:** Equipe de Desenvolvimento Agente Jurídico

@@ -1,5 +1,7 @@
 # Guia de Setup - Secretário Jurídico no Supabase
 
+**Última Atualização:** 2026-02-06
+
 ## Visão Geral
 
 Este documento fornece instruções detalhadas para configurar o banco de dados PostgreSQL do **Secretário Jurídico** no Supabase. O Supabase oferece uma alternativa gerenciada ao MySQL/MariaDB, com recursos adicionais como autenticação integrada, realtime subscriptions e storage de arquivos.
@@ -108,14 +110,14 @@ Armazena informações dos usuários autenticados.
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `id` | SERIAL | Identificador único (chave primária) |
-| `openId` | VARCHAR(64) | ID único do provedor OAuth |
+| `open_id` | VARCHAR(64) | ID único do provedor OAuth |
 | `name` | TEXT | Nome do usuário |
 | `email` | VARCHAR(320) | E-mail do usuário |
-| `loginMethod` | VARCHAR(64) | Método de login (oauth, etc.) |
+| `login_method` | VARCHAR(64) | Método de login (oauth, etc.) |
 | `role` | VARCHAR(20) | Papel do usuário (user, admin) |
-| `createdAt` | TIMESTAMP | Data de criação |
-| `updatedAt` | TIMESTAMP | Data de última atualização |
-| `lastSignedIn` | TIMESTAMP | Data do último acesso |
+| `created_at` | TIMESTAMP | Data de criação |
+| `updated_at` | TIMESTAMP | Data de última atualização |
+| `last_signed_in` | TIMESTAMP | Data do último acesso |
 
 ### Tabela: `notification_preferences`
 
@@ -124,15 +126,15 @@ Armazena as preferências de notificação de cada usuário.
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `id` | SERIAL | Identificador único |
-| `userId` | INTEGER | ID do usuário (chave estrangeira) |
-| `emailNotificationsEnabled` | VARCHAR(5) | Notificações ativadas? (true/false) |
-| `notifyVencidos` | VARCHAR(5) | Notificar sobre prazos vencidos? |
-| `notifyUrgentes` | VARCHAR(5) | Notificar sobre prazos urgentes? |
-| `notifyProximos` | VARCHAR(5) | Notificar sobre prazos próximos? |
-| `diasAntecedencia` | INTEGER | Dias de antecedência para alertas (1-30) |
-| `horarioNotificacao` | VARCHAR(5) | Horário preferido (HH:MM) |
-| `createdAt` | TIMESTAMP | Data de criação |
-| `updatedAt` | TIMESTAMP | Data de última atualização |
+| `user_id` | INTEGER | ID do usuário (chave estrangeira) |
+| `email_enabled` | VARCHAR(5) | Notificações ativadas? (true/false) |
+| `notify_vencidos` | VARCHAR(5) | Notificar sobre prazos vencidos? |
+| `notify_urgentes` | VARCHAR(5) | Notificar sobre prazos urgentes? |
+| `notify_proximos` | VARCHAR(5) | Notificar sobre prazos próximos? |
+| `dias_antecedencia` | INTEGER | Dias de antecedência para alertas (1-30) |
+| `horario_notificacao` | VARCHAR(5) | Horário preferido (HH:MM) |
+| `created_at` | TIMESTAMP | Data de criação |
+| `updated_at` | TIMESTAMP | Data de última atualização |
 
 ### Tabela: `notification_history`
 
@@ -141,63 +143,64 @@ Registra todas as notificações enviadas.
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `id` | SERIAL | Identificador único |
-| `userId` | INTEGER | ID do usuário |
-| `processId` | VARCHAR(64) | ID do processo |
-| `numeroProcesso` | VARCHAR(64) | Número do processo jurídico |
+| `user_id` | INTEGER | ID do usuário |
+| `processo_id` | VARCHAR(64) | ID do processo |
+| `numero_processo` | VARCHAR(64) | Número do processo jurídico |
 | `tipo` | VARCHAR(20) | Tipo de alerta (vencido, urgente, proximo) |
 | `assunto` | VARCHAR(255) | Assunto do e-mail |
 | `status` | VARCHAR(20) | Status (enviado, falha, pendente) |
-| `dataPrazo` | TIMESTAMP | Data do prazo |
-| `dataEnvio` | TIMESTAMP | Data de envio do e-mail |
-| `createdAt` | TIMESTAMP | Data de criação |
+| `data_prazo` | TIMESTAMP | Data do prazo |
+| `data_envio` | TIMESTAMP | Data de envio do e-mail |
+| `created_at` | TIMESTAMP | Data de criação |
 
-### Tabela: `processos` (Opcional)
+### Tabela: `processos`
 
 Armazena informações dos processos jurídicos.
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `id` | SERIAL | Identificador único |
-| `userId` | INTEGER | ID do usuário proprietário |
-| `numeroProcesso` | VARCHAR(64) | Número do processo |
+| `user_id` | INTEGER | ID do usuário proprietário |
+| `numero_processo` | VARCHAR(64) | Número do processo |
 | `titulo` | TEXT | Título/descrição do processo |
-| `parteContraria` | VARCHAR(255) | Nome da parte contrária |
+| `parte_contraria` | VARCHAR(255) | Nome da parte contrária |
 | `juizo` | VARCHAR(255) | Juízo responsável |
-| `dataAbertura` | DATE | Data de abertura |
-| `proximoPrazo` | DATE | Data do próximo prazo |
-| `descricaoPrazo` | TEXT | Descrição do prazo |
+| `data_abertura` | DATE | Data de abertura |
+| `proximo_prazo` | DATE | Data do próximo prazo |
+| `descricao_prazo` | TEXT | Descrição do prazo |
 | `status` | VARCHAR(50) | Status do processo |
-| `tipoProcesso` | VARCHAR(50) | Tipo (cível, criminal, etc.) |
-| `valorCausa` | VARCHAR(50) | Valor da causa |
+| `tipo_processo` | VARCHAR(50) | Tipo (cível, criminal, etc.) |
+| `valor_causa` | VARCHAR(50) | Valor da causa |
 | `anotacoes` | TEXT | Anotações adicionais |
-| `createdAt` | TIMESTAMP | Data de criação |
-| `updatedAt` | TIMESTAMP | Data de última atualização |
+| `insight_json` | JSONB | Resultado da análise de IA |
+| `created_at` | TIMESTAMP | Data de criação |
+| `updated_at` | TIMESTAMP | Data de última atualização |
 
-### Tabela: `documentos` (Opcional)
+### Tabela: `documentos`
 
 Armazena referências aos documentos anexados.
 
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `id` | SERIAL | Identificador único |
-| `userId` | INTEGER | ID do usuário proprietário |
-| `processoId` | INTEGER | ID do processo relacionado |
-| `numeroProcesso` | VARCHAR(64) | Número do processo |
-| `nome` | VARCHAR(255) | Nome do arquivo |
-| `url` | TEXT | URL do arquivo (S3, Storage, etc.) |
-| `fileKey` | VARCHAR(255) | Chave do arquivo no storage |
-| `mimeType` | VARCHAR(100) | Tipo MIME (application/pdf, etc.) |
+| `user_id` | INTEGER | ID do usuário proprietário |
+| `processo_id` | INTEGER | ID do processo relacionado |
+| `numero_processo` | VARCHAR(64) | Número do processo |
+| `nome_arquivo` | VARCHAR(255) | Nome do arquivo |
+| `url` | TEXT | URL do arquivo (Supabase Storage) |
+| `file_key` | VARCHAR(255) | Chave do arquivo no storage |
+| `mime_type` | VARCHAR(100) | Tipo MIME (application/pdf, etc.) |
 | `tamanho` | INTEGER | Tamanho em bytes |
 | `tipo` | VARCHAR(50) | Tipo de documento (pdf, imagem, etc.) |
 | `descricao` | TEXT | Descrição do documento |
-| `createdAt` | TIMESTAMP | Data de criação |
+| `created_at` | TIMESTAMP | Data de criação |
 
 ## Queries Úteis
 
 ### Listar todos os usuários
 
 ```sql
-SELECT id, name, email, role, "createdAt" FROM users ORDER BY "createdAt" DESC;
+SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC;
 ```
 
 ### Listar notificações pendentes
@@ -221,7 +224,7 @@ SELECT tipo, COUNT(*) as total FROM notification_history GROUP BY tipo;
 ### Listar documentos de um processo
 
 ```sql
-SELECT * FROM documentos WHERE "numeroProcesso" = '0000001-00.2026.0.00.0000' ORDER BY "createdAt" DESC;
+SELECT * FROM documentos WHERE numero_processo = '0000001-00.2026.0.00.0000' ORDER BY created_at DESC;
 ```
 
 ## Troubleshooting

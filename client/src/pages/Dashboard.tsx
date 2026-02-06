@@ -2,14 +2,30 @@ import { useProcessos } from "@/contexts/ProcessosContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Sidebar from "@/components/Sidebar";
-import { AlertCircle, Clock, CheckCircle2, FileText, TrendingUp, Menu, Calendar, Bell } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileText, TrendingUp, Menu, Calendar, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { Database } from "@/types/supabase-types";
 import { useAuth } from "@/_core/hooks/useAuth";
 
-type PainelUrgencia = Database['public']['Views']['vw_painel_urgencias']['Row'];
-type NotificacaoPendente = Database['public']['Views']['vw_notificacoes_pendentes']['Row'];
+// --- TIPAGEM MANUAL DAS VIEWS (Para garantir leitura correta do Snake_Case) ---
+interface PainelUrgenciaRow {
+  processo_id: number;
+  numero_processo: string;
+  titulo: string;
+  nivel_urgencia: 'Alta' | 'Média' | 'Baixa';
+  prazo_detectado: string | null;
+  insight_json: any;
+  data_analise: string;
+}
+
+interface NotificacaoPendenteRow {
+  id: number;
+  numero_processo: string;
+  mensagem: string;
+  prazo_detectado: string;
+  nivel_urgencia: string;
+  user_id: string;
+}
 
 export default function Dashboard() {
   const { processos, obterProcessosPorStatus, isLoading: isLoadingContext } = useProcessos();
@@ -18,10 +34,11 @@ export default function Dashboard() {
   const { user } = useAuth();
   
   // States para Views SQL
-  const [urgencias, setUrgencias] = useState<PainelUrgencia[]>([]);
-  const [notificacoes, setNotificacoes] = useState<NotificacaoPendente[]>([]);
+  const [urgencias, setUrgencias] = useState<PainelUrgenciaRow[]>([]);
+  const [notificacoes, setNotificacoes] = useState<NotificacaoPendenteRow[]>([]);
   const [isLoadingViews, setIsLoadingViews] = useState(true);
 
+  // Busca dados diretamente das Views SQL
   useEffect(() => {
     const fetchViews = async () => {
       if (!user) return;
@@ -31,13 +48,18 @@ export default function Dashboard() {
           supabase.from('vw_notificacoes_pendentes').select('*')
         ]);
 
-        if (urgenciasRes.error) throw urgenciasRes.error;
-        if (notificacoesRes.error) throw notificacoesRes.error;
+        if (urgenciasRes.error) {
+            console.error("Erro View Urgencias:", urgenciasRes.error);
+        }
+        if (notificacoesRes.error) {
+            console.error("Erro View Notificacoes:", notificacoesRes.error);
+        }
 
-        setUrgencias(urgenciasRes.data || []);
-        setNotificacoes(notificacoesRes.data || []);
+        // Força a tipagem para garantir que o TS entenda o retorno snake_case
+        setUrgencias((urgenciasRes.data as unknown as PainelUrgenciaRow[]) || []);
+        setNotificacoes((notificacoesRes.data as unknown as NotificacaoPendenteRow[]) || []);
       } catch (error) {
-        console.error("Erro ao carregar views do dashboard:", error);
+        console.error("Erro Crítico ao carregar dashboard:", error);
       } finally {
         setIsLoadingViews(false);
       }
@@ -49,7 +71,7 @@ export default function Dashboard() {
   const processosAtivos = obterProcessosPorStatus("ativo");
   const processosVeredicto = obterProcessosPorStatus("veredicto");
 
-  // Combinar dados do Context com Views
+  // Filtros locais (Baseado no Contexto)
   const processosFiltrados = filtroStatus
     ? processos.filter((p) => p.status === filtroStatus)
     : processos;
@@ -67,35 +89,23 @@ export default function Dashboard() {
 
   const getStatusStyles = (status: string) => {
     switch (status) {
-      case "urgente":
-        return "bg-red-500/10 text-red-600 border-red-200";
-      case "proximo_vencer":
-        return "bg-amber-500/10 text-amber-600 border-amber-200";
-      case "ativo":
-        return "bg-emerald-500/10 text-emerald-600 border-emerald-200";
-      case "aguardando":
-        return "bg-stone-500/10 text-stone-600 border-stone-200";
-      case "veredicto":
-        return "bg-blue-500/10 text-blue-600 border-blue-200";
-      default:
-        return "bg-gray-500/10 text-gray-600 border-gray-200";
+      case "urgente": return "bg-red-500/10 text-red-600 border-red-200";
+      case "proximo_vencer": return "bg-amber-500/10 text-amber-600 border-amber-200";
+      case "ativo": return "bg-emerald-500/10 text-emerald-600 border-emerald-200";
+      case "aguardando": return "bg-stone-500/10 text-stone-600 border-stone-200";
+      case "veredicto": return "bg-blue-500/10 text-blue-600 border-blue-200";
+      default: return "bg-gray-500/10 text-gray-600 border-gray-200";
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "urgente":
-        return "Urgente";
-      case "proximo_vencer":
-        return "Próximo";
-      case "ativo":
-        return "Ativo";
-      case "aguardando":
-        return "Aguardando";
-      case "veredicto":
-        return "Veredicto";
-      default:
-        return status;
+      case "urgente": return "Urgente";
+      case "proximo_vencer": return "Próximo";
+      case "ativo": return "Ativo";
+      case "aguardando": return "Aguardando";
+      case "veredicto": return "Veredicto";
+      default: return status;
     }
   };
 
@@ -116,6 +126,7 @@ export default function Dashboard() {
               </p>
             </div>
             <button
+              type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="md:hidden p-2 hover:bg-secondary rounded-xl"
             >
@@ -125,6 +136,7 @@ export default function Dashboard() {
 
           {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-12">
+            {/* CARD TOTAL */}
             <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center group-hover:bg-primary transition-colors">
@@ -137,6 +149,7 @@ export default function Dashboard() {
               </div>
             </Card>
 
+            {/* CARD ATIVOS */}
             <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:bg-emerald-500 transition-colors">
@@ -149,6 +162,7 @@ export default function Dashboard() {
               </div>
             </Card>
 
+            {/* CARD NOTIFICAÇÕES (IA) */}
             <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-amber-500/10 rounded-2xl flex items-center justify-center group-hover:bg-amber-500 transition-colors">
@@ -161,18 +175,20 @@ export default function Dashboard() {
               </div>
             </Card>
 
+            {/* CARD URGENTES (IA View) */}
             <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center group-hover:bg-red-500 transition-colors">
                   <AlertCircle className="w-7 h-7 text-red-600 group-hover:text-white transition-colors" />
                 </div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Urgentes (View)</p>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Urgentes (IA)</p>
                   <p className="text-4xl font-bold text-red-600">{urgencias.length}</p>
                 </div>
               </div>
             </Card>
 
+            {/* CARD VEREDICTOS */}
             <Card className="p-8 border-2 border-border/50 bg-white hover:shadow-2xl transition-all hover:-translate-y-1 rounded-4xl group">
               <div className="flex flex-col gap-4">
                 <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 transition-colors">
@@ -208,16 +224,6 @@ export default function Dashboard() {
               }`}
             >
               Ativos ({processosAtivos.length})
-            </Button>
-            <Button
-              onClick={() => setFiltroStatus("proximo_vencer")}
-              className={`rounded-xl font-bold transition-all px-8 py-6 ${
-                filtroStatus === "proximo_vencer"
-                  ? "bg-amber-600 text-white shadow-xl shadow-amber-600/20"
-                  : "bg-white text-foreground border-2 border-border hover:border-amber-600/50"
-              }`}
-            >
-              Próximos
             </Button>
             <Button
               onClick={() => setFiltroStatus("urgente")}

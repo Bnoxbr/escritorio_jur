@@ -1,12 +1,15 @@
 # Documentação do Frontend - Agente Jur
 
+**Última Atualização:** 2026-02-06
+
 ## 1. Visão Geral
 
 O frontend do **Agente Jur** é uma aplicação **Single Page Application (SPA)** construída com **React**, **TypeScript** e **Vite**. A interface é estilizada utilizando **TailwindCSS** e componentes baseados em **Shadcn UI**.
 
-A arquitetura de comunicação com o backend segue um modelo híbrido **Semi-Autônomo**:
-*   **Supabase SDK**: Utilizado para a maioria das operações de leitura e escrita de dados de domínio (Processos, Configurações, Insights), conectando-se diretamente ao banco de dados PostgreSQL com Row Level Security (RLS).
-*   **tRPC**: Utilizado para gerenciamento de sessão (Autenticação) e operações de sistema, mantendo a tipagem segura entre cliente e servidor.
+A arquitetura de comunicação segue um modelo **Supabase-First**:
+*   **Supabase SDK**: Utilizado para todas as operações de CRUD (Processos, Documentos, Configurações), conectando-se diretamente ao banco de dados PostgreSQL.
+*   **Adapters**: Camada de adaptação no frontend para converter dados do banco (`snake_case`) para a aplicação (`camelCase`).
+*   **tRPC**: Mantido para compatibilidade com sistema legado de autenticação (se aplicável), mas o foco principal é a interação direta com Supabase.
 
 ## 2. Estrutura de Diretórios (`client/src`)
 
@@ -49,7 +52,7 @@ Este é o fluxo principal para manipulação de dados como Processos, Notificaç
 const { data, error } = await supabase
   .from("processos")
   .select("*")
-  .eq("userId", user.id);
+  .eq("user_id", user.id); // Note o uso de snake_case
 ```
 
 ### 3.2. Pipeline de Autenticação e Sistema (tRPC)
@@ -69,21 +72,31 @@ const meQuery = trpc.auth.me.useQuery(undefined, {
 });
 ```
 
-### 3.3. Pipeline de Inteligência Artificial (Service Layer)
+### 3.3. Pipeline de Inteligência Artificial
 Gerencia a interação com modelos de IA e o armazenamento dos resultados.
 
-**Fluxo:**
+**Fluxo (Via Edge Function):**
+1.  **Upload**: Usuário faz upload de PDF.
+2.  **Trigger**: Banco detecta novo arquivo e aciona Edge Function.
+3.  **Processamento**: Deno function extrai texto e chama Llama 3.
+4.  **Persistência**: Resultado salvo em `processamentos_ia`.
+5.  **Frontend**: Recebe atualização via Realtime ou Polling.
+
+**Fluxo (Via Texto Direto - `agenteService.ts`):**
 1.  **Componente**: Chama `processarAndamento()` em `agenteService.ts`.
 2.  **Service**:
-    *   Simula/Chama API de LLM (ex: Llama 3).
-    *   Recebe o JSON estruturado.
+    *   Chama API de LLM.
     *   Persiste o resultado na tabela `processamentos_ia` via Supabase SDK.
 
 **Exemplo de Código (`agenteService.ts`):**
 ```typescript
 // Processa texto e salva insight
 const insightIA = await chamarLlama3(textoBruto);
-await supabase.from('processamentos_ia').insert({ ... });
+await supabase.from('processamentos_ia').insert({ 
+  user_id: userId,
+  texto_bruto: textoBruto,
+  insight_json: insightIA 
+});
 ```
 
 ## 4. Diagrama de Arquitetura

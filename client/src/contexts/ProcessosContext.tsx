@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +19,44 @@ interface ProcessosContextType {
 }
 
 const ProcessosContext = createContext<ProcessosContextType | undefined>(undefined);
+
+// --- FUNÇÕES AUXILIARES DE MAPEAMENTO (Snake_case <-> CamelCase) ---
+// Isso impede que o Frontend quebre com as mudanças do Banco
+const mapFromDb = (dbItem: any): Processo => ({
+  id: dbItem.id,
+  userId: dbItem.user_id,
+  numeroProcesso: dbItem.numero_processo,
+  titulo: dbItem.titulo,
+  parteContraria: dbItem.parte_contraria,
+  juizo: dbItem.juizo,
+  dataAbertura: dbItem.data_abertura,
+  proximoPrazo: dbItem.proximo_prazo,
+  descricaoPrazo: dbItem.descricao_prazo,
+  status: dbItem.status,
+  tipoProcesso: dbItem.tipo_processo,
+  valorCausa: dbItem.valor_causa,
+  anotacoes: dbItem.anotacoes,
+  aiSummary: dbItem.insight_json ? (dbItem.insight_json.resumo || dbItem.ai_summary) : null,
+  createdAt: dbItem.created_at,
+  updatedAt: dbItem.updated_at
+});
+
+const mapToDb = (localItem: Partial<Processo>) => {
+  const payload: any = {};
+  if (localItem.userId) payload.user_id = localItem.userId;
+  if (localItem.numeroProcesso) payload.numero_processo = localItem.numeroProcesso;
+  if (localItem.titulo) payload.titulo = localItem.titulo;
+  if (localItem.parteContraria) payload.parte_contraria = localItem.parteContraria;
+  if (localItem.juizo) payload.juizo = localItem.juizo;
+  if (localItem.dataAbertura) payload.data_abertura = localItem.dataAbertura;
+  if (localItem.proximoPrazo) payload.proximo_prazo = localItem.proximoPrazo;
+  if (localItem.descricaoPrazo) payload.descricao_prazo = localItem.descricaoPrazo;
+  if (localItem.status) payload.status = localItem.status;
+  if (localItem.tipoProcesso) payload.tipo_processo = localItem.tipoProcesso;
+  if (localItem.valorCausa) payload.valor_causa = localItem.valorCausa;
+  if (localItem.anotacoes) payload.anotacoes = localItem.anotacoes;
+  return payload;
+};
 
 export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [processos, setProcessos] = useState<Processo[]>([]);
@@ -50,7 +87,6 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // Se estiver em modo Demo, carrega dados mockados
     if (localStorage.getItem("isDemoMode") === "true") {
       setIsLoading(true);
-      // Simula delay de rede
       setTimeout(() => {
         setProcessos([
           {
@@ -61,7 +97,7 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             parteContraria: "Banco Nacional S.A.",
             juizo: "3ª Vara Cível",
             dataAbertura: new Date().toISOString(),
-            proximoPrazo: new Date(Date.now() + 86400000 * 2).toISOString(), // 2 dias
+            proximoPrazo: new Date(Date.now() + 86400000 * 2).toISOString(),
             descricaoPrazo: "Réplica à Contestação",
             status: "urgente",
             tipoProcesso: "cível",
@@ -71,25 +107,7 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           },
-          {
-            id: 9992,
-            userId: "demo-user",
-            numeroProcesso: "0054321-99.2023.5.02.0001",
-            titulo: "Reclamação Trabalhista",
-            parteContraria: "Empresa de Transportes LTDA",
-            juizo: "1ª Vara do Trabalho",
-            dataAbertura: new Date().toISOString(),
-            proximoPrazo: new Date(Date.now() + 86400000 * 5).toISOString(), // 5 dias
-            descricaoPrazo: "Audiência de Instrução",
-            status: "ativo",
-            tipoProcesso: "trabalhista",
-            valorCausa: "R$ 120.000,00",
-            anotacoes: null,
-            aiSummary: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          }
-        ] as unknown as Processo[]); // Type casting to match Supabase Processo type exactly if needed
+        ] as unknown as Processo[]);
         setIsLoading(false);
       }, 500);
       return;
@@ -98,14 +116,18 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!user) return;
     setIsLoading(true);
     try {
+      // CORREÇÃO: Usando nomes snake_case do banco
       const { data, error } = await supabase
         .from("processos")
         .select("*")
-        .eq("userId", user.id)
-        .order("updatedAt", { ascending: false });
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setProcessos(data || []);
+      
+      // Mapeia de volta para o formato que o React espera
+      const processosFormatados = (data || []).map(mapFromDb);
+      setProcessos(processosFormatados);
     } catch (error) {
       console.error("Erro ao buscar processos:", error);
       toast.error("Erro ao carregar processos.");
@@ -121,35 +143,29 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const adicionarProcesso = async (novo: Omit<Processo, "id" | "createdAt" | "updatedAt" | "userId">) => {
     if (isDemoMode) {
       toast.info("Modo Demo: Processo adicionado localmente.");
-      // Adiciona fake
       setProcessos(prev => [{
         ...novo,
         id: Math.floor(Math.random() * 10000),
         userId: 'demo-user',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        dataAbertura: novo.dataAbertura || null,
-        proximoPrazo: novo.proximoPrazo || null,
-        descricaoPrazo: novo.descricaoPrazo || null,
-        status: novo.status || "ativo",
-        tipoProcesso: novo.tipoProcesso || "cível",
-        valorCausa: novo.valorCausa || null,
-        anotacoes: novo.anotacoes || null,
-        aiSummary: null
       } as Processo, ...prev]);
       return;
     }
     if (!user) return;
     try {
+      // Converte para snake_case antes de enviar
+      const payload = mapToDb({ ...novo, userId: user.id });
+
       const { data, error } = await supabase
         .from("processos")
-        .insert({ ...novo, userId: user.id })
+        .insert(payload)
         .select()
         .single();
 
       if (error) throw error;
       
-      setProcessos((prev) => [data, ...prev]);
+      setProcessos((prev) => [mapFromDb(data), ...prev]);
       toast.success("Processo adicionado com sucesso!");
     } catch (error) {
       console.error("Erro ao adicionar processo:", error);
@@ -159,9 +175,12 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const atualizarProcesso = async (id: number, atualizacoes: Partial<Processo>) => {
     try {
+      // Converte atualizações para snake_case
+      const payload = mapToDb(atualizacoes);
+
       const { data, error } = await supabase
         .from("processos")
-        .update(atualizacoes)
+        .update(payload)
         .eq("id", id)
         .select()
         .single();
@@ -169,7 +188,7 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       if (error) throw error;
 
       setProcessos((prev) =>
-        prev.map((p) => (p.id === id ? data : p))
+        prev.map((p) => (p.id === id ? mapFromDb(data) : p))
       );
       toast.success("Processo atualizado!");
     } catch (error) {
@@ -180,7 +199,6 @@ export const ProcessosProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const deletarProcesso = async (id: number) => {
     if (isDemoMode) {
-      toast.info("Modo Demo: Processo removido localmente.");
       setProcessos((prev) => prev.filter((p) => p.id !== id));
       return;
     }

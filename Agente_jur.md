@@ -1,8 +1,9 @@
 # Secretário Jurídico - Documentação do Agente Inteligente
 
-**Versão:** 1.0  
-**Data de Criação:** Janeiro de 2026  
-**Autor:** Manus AI  
+**Versão:** 1.1
+**Data de Criação:** Janeiro de 2026
+**Última Atualização:** 2026-02-06
+**Autor:** Manus AI
 **Status:** Produção
 
 ---
@@ -345,12 +346,13 @@ Status =
 
 ### Arquitetura Técnica
 
-O Secretário Jurídico é integrado ao app através de:
+O Secretário Jurídico é integrado ao app através de uma arquitetura orientada a eventos e serverless:
 
-1. **Frontend (React):** Interface do usuário com componentes reutilizáveis
-2. **Backend (Node.js + Express):** APIs tRPC para comunicação
-3. **Database (Supabase/PostgreSQL):** Armazenamento de dados
-4. **Storage (S3):** Armazenamento de documentos
+1. **Frontend (React):** Interface do usuário com componentes reutilizáveis e comunicação direta com Supabase.
+2. **Backend (Supabase + Edge Functions):** Banco de dados, Autenticação e Lógica Serverless (Deno).
+3. **Database (PostgreSQL):** Armazenamento de dados com schema otimizado (snake_case).
+4. **Storage (Supabase Storage):** Armazenamento de documentos PDF e imagens.
+5. **AI Processing:** Integração com Llama 3 via Groq API.
 
 ### Fluxo de Integração
 
@@ -360,29 +362,30 @@ O Secretário Jurídico é integrado ao app através de:
 │  (Frontend)     │
 └────────┬────────┘
          │
-         ├─→ tRPC Queries (ler dados)
+         ├─→ Supabase Client (ler/escrever dados)
          │
-         ├─→ tRPC Mutations (escrever dados)
+         ├─→ Real-time Subscriptions (atualizações)
          │
-         └─→ Real-time Subscriptions (atualizações)
+         └─→ Upload Documentos (Storage)
          │
 ┌────────▼────────┐
-│   Node.js API   │
-│   (Backend)     │
+│   Supabase      │
+│  (Backend/DB)   │
 └────────┬────────┘
          │
-         ├─→ Lógica de Negócio
+         ├─→ Trigger (Ao inserir documento)
          │
-         ├─→ Validações
+         ▼
+┌─────────────────┐
+│  Edge Function  │
+│ (Deno/Analyze)  │
+└────────┬────────┘
          │
-         ├─→ Cálculos de Prazos
+         ├─→ Baixa PDF
          │
-         └─→ Processamento de Documentos
+         ├─→ Chama Llama 3 (Groq)
          │
-┌────────▼────────┐
-│   Database      │
-│   (Supabase)    │
-└─────────────────┘
+         └─→ Salva Insight JSON
 ```
 
 ### Tabelas do Banco de Dados
@@ -422,7 +425,7 @@ O Secretário Jurídico é integrado ao app através de:
 - processo_id (FK)
 - nome_arquivo
 - tipo_documento
-- url_s3
+- url
 - data_upload
 - tamanho_bytes
 - created_at
@@ -514,11 +517,11 @@ Para desenvolvedores e administradores do sistema, aqui estão os detalhes técn
 - **Roteamento:** Wouter
 
 ### Backend (Server)
-- **Runtime:** Node.js (TSX para desenvolvimento)
-- **API:** tRPC Server (Type-safe)
-- **ORM:** Drizzle ORM
+- **Runtime:** Deno (Edge Functions) / Node.js (Legado/Auth)
+- **API:** Supabase Client (REST/Realtime)
 - **Banco de Dados:** PostgreSQL (Supabase)
-- **Autenticação:** Fluxo OAuth2 integrado
+- **Autenticação:** Supabase Auth / Fluxo OAuth2
+- **IA:** Llama 3 via Groq API
 
 ### Configuração de Ambiente (.env)
 
@@ -526,11 +529,12 @@ O projeto requer as seguintes variáveis configuradas:
 
 | Variável | Descrição |
 |----------|-----------|
+| `VITE_SUPABASE_URL` | URL do projeto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Chave pública anônima do Supabase |
+| `GROQ_API_KEY` | Chave da API para o modelo Llama 3 (Backend) |
 | `DATABASE_URL` | String de conexão com o PostgreSQL |
 | `VITE_OAUTH_PORTAL_URL` | URL do serviço de autenticação externa |
 | `VITE_APP_ID` | ID da aplicação no sistema de autenticação |
-| `VITE_ANALYTICS_ENDPOINT` | URL para coleta de analytics (Umami) |
-| `VITE_ANALYTICS_WEBSITE_ID` | ID do site no analytics |
 
 ### Comandos Úteis
 
